@@ -1,236 +1,148 @@
 // Voice feedback using Web Speech API
-// Uses a slow, warm female voice for encouraging feedback
-// Android-compatible: creates utterance in gesture context
+// Picks the highest-quality natural voice available (prefers Google/neural female voices)
 
 let selectedVoice: SpeechSynthesisVoice | null = null;
-let voicesLoaded = false;
 
-function getFemaleVoice(): SpeechSynthesisVoice | null {
+function pickBestVoice(): SpeechSynthesisVoice | null {
   if (selectedVoice) return selectedVoice;
+  if (typeof window === 'undefined' || !('speechSynthesis' in window)) return null;
   const voices = speechSynthesis.getVoices();
-  if (voices.length === 0) return null;
-  voicesLoaded = true;
+  if (!voices.length) return null;
 
-  // STRICTLY prefer female voices — never pick male
-  const femaleNames = [
-    'Samantha', 'Victoria', 'Karen', 'Moira', 'Fiona', 'Tessa',
-    'Zira', 'Hazel', 'Susan', 'Linda', 'Catherine', 'Allison',
-    'Google US English', 'Microsoft Zira', 'Female',
-    'Joana', 'Paulina', 'Monica', 'Amelie', 'Anna',
-  ];
+  const en = voices.filter(v => v.lang.toLowerCase().startsWith('en'));
 
-  // Explicitly reject male voices
-  const maleNames = [
-    'Daniel', 'David', 'James', 'Alex', 'Tom', 'Fred', 'Ralph',
-    'Albert', 'Bruce', 'Junior', 'Aaron', 'Google UK English Male',
-    'Microsoft David', 'Male', 'Mark', 'Richard',
-  ];
+  // Highest priority: Google's natural-sounding voices
+  const googleFemale = en.find(v => /Google.*US English/i.test(v.name)) ||
+                       en.find(v => /Google.*English/i.test(v.name) && !/Male/i.test(v.name));
+  if (googleFemale) { selectedVoice = googleFemale; return googleFemale; }
 
-  const enVoices = voices.filter(v => v.lang.startsWith('en'));
+  // Apple / Microsoft natural voices
+  const appleNatural = en.find(v => /(Samantha|Ava|Allison|Karen|Moira|Tessa|Serena|Joanna)/i.test(v.name));
+  if (appleNatural) { selectedVoice = appleNatural; return appleNatural; }
 
-  // First pass: find known female voice
-  const knownFemale = enVoices.find(v =>
-    femaleNames.some(name => v.name.includes(name))
-  );
-  if (knownFemale) { selectedVoice = knownFemale; return knownFemale; }
+  const msNatural = en.find(v => /(Aria|Jenny|Zira|Hazel|Libby|Sonia)/i.test(v.name));
+  if (msNatural) { selectedVoice = msNatural; return msNatural; }
 
-  // Second pass: any English voice that is NOT a known male
-  const notMale = enVoices.find(v =>
-    !maleNames.some(name => v.name.includes(name))
-  );
-  if (notMale) { selectedVoice = notMale; return notMale; }
-
-  // Fallback: first English voice or first voice
-  selectedVoice = enVoices[0] || voices[0] || null;
+  // Fallback: any non-male English voice
+  const notMale = en.find(v => !/(Male|David|Daniel|James|Mark|Alex|Fred|George|Tom)/i.test(v.name));
+  selectedVoice = notMale || en[0] || voices[0];
   return selectedVoice;
 }
 
-// Preload voices
 if (typeof window !== 'undefined' && 'speechSynthesis' in window) {
-  speechSynthesis.onvoiceschanged = () => { selectedVoice = null; getFemaleVoice(); };
-  setTimeout(() => speechSynthesis.getVoices(), 100);
+  speechSynthesis.onvoiceschanged = () => { selectedVoice = null; pickBestVoice(); };
+  setTimeout(() => { speechSynthesis.getVoices(); pickBestVoice(); }, 100);
 }
 
-// Better letter pronunciation map
-const letterPronunciation: Record<string, string> = {
-  'A': 'Ayyy',
-  'B': 'Bee',
-  'C': 'See',
-  'D': 'Dee',
-  'E': 'Eee',
-  'F': 'Eff',
-  'G': 'Jee',
-  'H': 'Aych',
-  'I': 'Eye',
-  'J': 'Jay',
-  'K': 'Kay',
-  'L': 'Ell',
-  'M': 'Emm',
-  'N': 'Enn',
-  'O': 'Ohh',
-  'P': 'Pee',
-  'Q': 'Cue',
-  'R': 'Are',
-  'S': 'Ess',
-  'T': 'Tee',
-  'U': 'You',
-  'V': 'Vee',
-  'W': 'Double you',
-  'X': 'Ex',
-  'Y': 'Why',
-  'Z': 'Zed',
-};
-
+// Natural phrases — short, no stretched letters
 const correctPhrases = [
-  "Wooow... well done!",
-  "Greaat job!",
-  "Keeeep going!",
-  "You're amaazing!",
+  "Great job!",
+  "Well done!",
+  "Excellent!",
+  "You got it!",
   "Wonderful!",
-  "Fantaaastic!",
-  "You did it!",
-  "I'm so proud of you!",
+  "Fantastic!",
+  "Amazing!",
+  "Perfect!",
 ];
 
 const encouragePhrases = [
-  "Hmmm... let's try again",
-  "Almooost there!",
-  "You can do it!",
-  "Keeeep trying!",
-  "Let's try one more time",
+  "Almost! Try again.",
+  "You can do it.",
+  "Keep trying.",
+  "Try one more time.",
+  "Nearly there.",
 ];
 
 const levelCompletePhrases = [
-  "Wooow... greaat job! I'm so proud of you!",
-  "Amaazing... you completed this level!",
-  "Wonderful work! You're a star!",
+  "Great job! You finished this level.",
+  "Amazing work! Level complete.",
+  "Wonderful! You did it.",
 ];
 
 const stageCompletePhrases = [
-  "Wooow... you finished this stage!",
-  "Incredible! You completed the whole stage!",
+  "You finished the whole stage. Incredible!",
+  "Stage complete! You're a star.",
 ];
 
-const welcomeBackText = (name: string) => `Welcome back... ${name}... ready to continue?`;
-
-// Android fix: Pre-create utterance synchronously, speak immediately
-function speak(text: string, rate = 0.65) {
+function speak(text: string, opts: { rate?: number; pitch?: number } = {}) {
   if (typeof window === 'undefined' || !('speechSynthesis' in window)) return;
-
   try {
     speechSynthesis.cancel();
-
-    const utterance = new SpeechSynthesisUtterance(text);
-    utterance.rate = rate;
-    utterance.pitch = 1.15;
-    utterance.volume = 0.85;
-    utterance.lang = 'en-US';
-
-    const voice = getFemaleVoice();
-    if (voice) utterance.voice = voice;
-
-    speechSynthesis.speak(utterance);
-
-    // Android workaround: resume periodically
-    const resumeInterval = setInterval(() => {
-      if (!speechSynthesis.speaking) {
-        clearInterval(resumeInterval);
-        return;
-      }
-      speechSynthesis.pause();
-      speechSynthesis.resume();
-    }, 5000);
-
-    utterance.onend = () => clearInterval(resumeInterval);
-    utterance.onerror = () => clearInterval(resumeInterval);
+    const u = new SpeechSynthesisUtterance(text);
+    u.rate = opts.rate ?? 1.0;        // natural speed
+    u.pitch = opts.pitch ?? 1.05;     // slightly warm but not childish
+    u.volume = 1.0;
+    u.lang = 'en-US';
+    const v = pickBestVoice();
+    if (v) u.voice = v;
+    speechSynthesis.speak(u);
   } catch (e) {
-    console.warn('Speech synthesis error:', e);
+    console.warn('Speech error:', e);
   }
 }
 
-// For auto-play (not from user gesture)
-function speakAutoPlay(text: string, rate = 0.65) {
-  if (typeof window === 'undefined' || !('speechSynthesis' in window)) return;
-
-  try {
-    speechSynthesis.cancel();
-    const utterance = new SpeechSynthesisUtterance(text);
-    utterance.rate = rate;
-    utterance.pitch = 1.15;
-    utterance.volume = 0.85;
-    utterance.lang = 'en-US';
-
-    const voice = getFemaleVoice();
-    if (voice) utterance.voice = voice;
-
-    speechSynthesis.speak(utterance);
-  } catch (e) {
-    console.warn('Auto speech error:', e);
-  }
-}
-
-// Unlock speech on first user interaction (Android requirement)
-let speechUnlocked = false;
+let unlocked = false;
 export function unlockSpeech() {
-  if (speechUnlocked) return;
+  if (unlocked) return;
   if (typeof window === 'undefined' || !('speechSynthesis' in window)) return;
-
   try {
-    const utterance = new SpeechSynthesisUtterance('');
-    utterance.volume = 0;
-    speechSynthesis.speak(utterance);
-    speechUnlocked = true;
+    const u = new SpeechSynthesisUtterance(' ');
+    u.volume = 0;
+    speechSynthesis.speak(u);
+    unlocked = true;
   } catch {}
 }
 
 export function speakCorrect() {
-  const phrase = correctPhrases[Math.floor(Math.random() * correctPhrases.length)];
-  speak(phrase, 0.65);
+  speak(correctPhrases[Math.floor(Math.random() * correctPhrases.length)]);
 }
-
 export function speakEncourage() {
-  const phrase = encouragePhrases[Math.floor(Math.random() * encouragePhrases.length)];
-  speak(phrase, 0.65);
+  speak(encouragePhrases[Math.floor(Math.random() * encouragePhrases.length)]);
 }
-
 export function speakLevelComplete() {
-  const phrase = levelCompletePhrases[Math.floor(Math.random() * levelCompletePhrases.length)];
-  speak(phrase, 0.6);
+  speak(levelCompletePhrases[Math.floor(Math.random() * levelCompletePhrases.length)], { rate: 0.95 });
 }
-
 export function speakStageComplete() {
-  const phrase = stageCompletePhrases[Math.floor(Math.random() * stageCompletePhrases.length)];
-  speak(phrase, 0.6);
+  speak(stageCompletePhrases[Math.floor(Math.random() * stageCompletePhrases.length)], { rate: 0.95 });
+}
+export function speakWelcomeBack(name: string) {
+  speak(`Welcome back, ${name}. Ready to continue?`);
 }
 
-export function speakWelcomeBack(name: string) {
-  speak(welcomeBackText(name), 0.65);
-}
+// Letters: speak the actual phonetic name correctly.
+// SpeechSynthesis pronounces single uppercase letters as letter names already,
+// but we add the sound word for learning context.
+const letterSound: Record<string, string> = {
+  A: 'ay', B: 'bee', C: 'see', D: 'dee', E: 'ee', F: 'eff', G: 'jee',
+  H: 'aitch', I: 'eye', J: 'jay', K: 'kay', L: 'el', M: 'em', N: 'en',
+  O: 'oh', P: 'pee', Q: 'cue', R: 'ar', S: 'ess', T: 'tee', U: 'you',
+  V: 'vee', W: 'double-you', X: 'ex', Y: 'why', Z: 'zee',
+};
 
 export function speakLetter(letter: string) {
-  const pronunciation = letterPronunciation[letter.toUpperCase()] || letter;
-  const text = `${pronunciation}... this is... ${letter}`;
-  speak(text, 0.6);
+  const L = letter.toUpperCase();
+  const sound = letterSound[L] || L;
+  // Use the letter name twice — natural cadence, no stretched vowels
+  speak(`${sound}. This is ${sound}.`, { rate: 0.9 });
 }
-
 export function speakLetterAuto(letter: string) {
-  const pronunciation = letterPronunciation[letter.toUpperCase()] || letter;
-  const text = `${pronunciation}... this is... ${letter}`;
-  speakAutoPlay(text, 0.6);
+  speakLetter(letter);
 }
-
 export function speakLetsTry() {
-  speak("Let's try together", 0.65);
+  speak("Let's try together.");
 }
-
 export function speakLevelUnlocked() {
-  speak("Yaaay... a new level is ready!", 0.65);
+  speak('A new level is ready!');
 }
-
 export function speakExamStart() {
-  speak("Let's see how much you've learned!... You can do this!", 0.6);
+  speak("Let's see how much you've learned. You can do this!", { rate: 0.95 });
+}
+export function speakExamComplete() {
+  speak('You passed the test! Amazing!', { rate: 0.95 });
 }
 
-export function speakExamComplete() {
-  speak("Wooow... you passed the test!... Amazing!", 0.6);
+// Rank announcement for stage complete
+export function speakRank(rank: string) {
+  speak(`${rank}! ${correctPhrases[Math.floor(Math.random() * correctPhrases.length)]}`, { rate: 0.9, pitch: 1.1 });
 }

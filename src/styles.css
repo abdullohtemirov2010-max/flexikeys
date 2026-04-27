@@ -267,3 +267,39 @@
 .animate-pulse-slow {
   animation: pulse-slow 2.4s ease-in-out infinite;
 }
+
+/* ===== Rank reveal animations ===== */
+@keyframes rank-pop {
+  0%   { transform: scale(0) rotate(-180deg); opacity: 0; }
+  60%  { transform: scale(1.4) rotate(15deg); opacity: 1; }
+  100% { transform: scale(1) rotate(0deg); opacity: 1; }
+}
+.animate-rank-pop { animation: rank-pop 0.8s cubic-bezier(0.34, 1.56, 0.64, 1) both; }
+
+@keyframes rank-title {
+  0%   { transform: scale(0.6); opacity: 0; filter: blur(8px); }
+  100% { transform: scale(1); opacity: 1; filter: blur(0); }
+}
+.animate-rank-title { animation: rank-title 0.7s ease-out 0.2s both; }
+
+@keyframes letter-drop {
+  0%   { transform: translateY(-30px) scale(0.5); opacity: 0; }
+  60%  { transform: translateY(8px) scale(1.1); opacity: 1; }
+  100% { transform: translateY(0) scale(1); opacity: 1; }
+}
+.animate-letter-drop { animation: letter-drop 0.5s ease-out both; }
+
+@keyframes shine-line {
+  0%   { transform: scaleX(0); opacity: 0; }
+  100% { transform: scaleX(1); opacity: 1; }
+}
+.animate-shine-line {
+  transform-origin: center;
+  animation: shine-line 0.8s ease-out 1.2s both;
+}
+
+@keyframes confetti {
+  0%   { transform: translateY(0) rotate(0deg); opacity: 1; }
+  100% { transform: translateY(120vh) rotate(720deg); opacity: 0; }
+}
+.animate-confetti { animation: confetti linear forwards; }
