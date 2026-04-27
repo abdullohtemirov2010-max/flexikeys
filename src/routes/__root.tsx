@@ -37,6 +37,10 @@ export const Route = createRootRoute({
       { property: "og:type", content: "website" },
       { name: "twitter:card", content: "summary" },
       { name: "twitter:site", content: "@Lovable" },
+      { name: "twitter:title", content: "FlexiKeys — Small steps. Big progress." },
+      { name: "twitter:description", content: "A gentle, adaptive alphabet game for kids with a friendly cloud mascot." },
+      { property: "og:image", content: "https://storage.googleapis.com/gpt-engineer-file-uploads/wbqyYNSwoLO9VdZXdqlBJiwIE992/social-images/social-1777280121670-flexi_symbol.webp" },
+      { name: "twitter:image", content: "https://storage.googleapis.com/gpt-engineer-file-uploads/wbqyYNSwoLO9VdZXdqlBJiwIE992/social-images/social-1777280121670-flexi_symbol.webp" },
     ],
     links: [
       {
