@@ -1,5 +1,9 @@
 // Voice feedback using Web Speech API
-// Picks the highest-quality natural voice available (prefers Google/neural female voices)
+// Tuned for children with autism / Down syndrome:
+//  - slower rate
+//  - calm, warm, neutral pitch
+//  - no overlapping speech
+//  - correct phonetic pronunciation of each alphabet letter
 
 let selectedVoice: SpeechSynthesisVoice | null = null;
 
@@ -11,22 +15,17 @@ function pickBestVoice(): SpeechSynthesisVoice | null {
 
   const en = voices.filter(v => v.lang.toLowerCase().startsWith('en'));
 
-  // Highest priority: Google's natural-sounding voices
-  const googleFemale = en.find(v => /Google.*US English/i.test(v.name)) ||
-                       en.find(v => /Google.*English/i.test(v.name) && !/Male/i.test(v.name));
-  if (googleFemale) { selectedVoice = googleFemale; return googleFemale; }
+  // Prefer high-quality natural female voices
+  const preferred =
+    en.find(v => /Google US English/i.test(v.name)) ||
+    en.find(v => /Google.*English/i.test(v.name) && !/Male/i.test(v.name)) ||
+    en.find(v => /(Samantha|Ava|Allison|Karen|Moira|Tessa|Serena|Joanna|Nicky)/i.test(v.name)) ||
+    en.find(v => /(Aria|Jenny|Zira|Hazel|Libby|Sonia|Michelle)/i.test(v.name)) ||
+    en.find(v => !/(Male|David|Daniel|James|Mark|Alex|Fred|George|Tom)/i.test(v.name)) ||
+    en[0] || voices[0];
 
-  // Apple / Microsoft natural voices
-  const appleNatural = en.find(v => /(Samantha|Ava|Allison|Karen|Moira|Tessa|Serena|Joanna)/i.test(v.name));
-  if (appleNatural) { selectedVoice = appleNatural; return appleNatural; }
-
-  const msNatural = en.find(v => /(Aria|Jenny|Zira|Hazel|Libby|Sonia)/i.test(v.name));
-  if (msNatural) { selectedVoice = msNatural; return msNatural; }
-
-  // Fallback: any non-male English voice
-  const notMale = en.find(v => !/(Male|David|Daniel|James|Mark|Alex|Fred|George|Tom)/i.test(v.name));
-  selectedVoice = notMale || en[0] || voices[0];
-  return selectedVoice;
+  selectedVoice = preferred;
+  return preferred;
 }
 
 if (typeof window !== 'undefined' && 'speechSynthesis' in window) {
@@ -34,45 +33,55 @@ if (typeof window !== 'undefined' && 'speechSynthesis' in window) {
   setTimeout(() => { speechSynthesis.getVoices(); pickBestVoice(); }, 100);
 }
 
-// Natural phrases — short, no stretched letters
+// ---- Phrases ----
 const correctPhrases = [
   "Great job!",
   "Well done!",
   "Excellent!",
-  "You got it!",
+  "You did it!",
   "Wonderful!",
   "Fantastic!",
-  "Amazing!",
-  "Perfect!",
 ];
 
 const encouragePhrases = [
-  "Almost! Try again.",
+  "Try again.",
   "You can do it.",
-  "Keep trying.",
-  "Try one more time.",
-  "Nearly there.",
+  "Almost there.",
+  "Take your time.",
 ];
 
 const levelCompletePhrases = [
-  "Great job! You finished this level.",
-  "Amazing work! Level complete.",
-  "Wonderful! You did it.",
+  "You finished this level. Great work.",
+  "Level complete. Well done.",
 ];
 
 const stageCompletePhrases = [
-  "You finished the whole stage. Incredible!",
-  "Stage complete! You're a star.",
+  "You finished the whole stage. Amazing work.",
+  "Stage complete. You are doing wonderfully.",
 ];
 
-function speak(text: string, opts: { rate?: number; pitch?: number } = {}) {
+// Default speech settings — slower, calm, clear
+function userRate(fallback: number): number {
+  if (typeof window === 'undefined') return fallback;
+  const v = parseFloat(localStorage.getItem('fk_voice_speed') || '');
+  return isNaN(v) ? fallback : v;
+}
+function userVolume(): number {
+  if (typeof window === 'undefined') return 1;
+  const v = parseFloat(localStorage.getItem('fk_volume') || '');
+  return isNaN(v) ? 1 : v;
+}
+const DEFAULT_RATE = 0.78;
+const DEFAULT_PITCH = 1.0;
+
+function speak(text: string, opts: { rate?: number; pitch?: number; immediate?: boolean } = {}) {
   if (typeof window === 'undefined' || !('speechSynthesis' in window)) return;
   try {
-    speechSynthesis.cancel();
+    if (opts.immediate !== false) speechSynthesis.cancel();
     const u = new SpeechSynthesisUtterance(text);
-    u.rate = opts.rate ?? 1.0;        // natural speed
-    u.pitch = opts.pitch ?? 1.05;     // slightly warm but not childish
-    u.volume = 1.0;
+    u.rate = opts.rate ?? userRate(DEFAULT_RATE);
+    u.pitch = opts.pitch ?? DEFAULT_PITCH;
+    u.volume = userVolume();
     u.lang = 'en-US';
     const v = pickBestVoice();
     if (v) u.voice = v;
@@ -95,54 +104,61 @@ export function unlockSpeech() {
 }
 
 export function speakCorrect() {
-  speak(correctPhrases[Math.floor(Math.random() * correctPhrases.length)]);
+  speak(correctPhrases[Math.floor(Math.random() * correctPhrases.length)], { rate: 0.85 });
 }
 export function speakEncourage() {
-  speak(encouragePhrases[Math.floor(Math.random() * encouragePhrases.length)]);
+  speak(encouragePhrases[Math.floor(Math.random() * encouragePhrases.length)], { rate: 0.8 });
 }
 export function speakLevelComplete() {
-  speak(levelCompletePhrases[Math.floor(Math.random() * levelCompletePhrases.length)], { rate: 0.95 });
+  speak(levelCompletePhrases[Math.floor(Math.random() * levelCompletePhrases.length)], { rate: 0.78 });
 }
 export function speakStageComplete() {
-  speak(stageCompletePhrases[Math.floor(Math.random() * stageCompletePhrases.length)], { rate: 0.95 });
+  speak(stageCompletePhrases[Math.floor(Math.random() * stageCompletePhrases.length)], { rate: 0.78 });
 }
 export function speakWelcomeBack(name: string) {
-  speak(`Welcome back, ${name}. Ready to continue?`);
+  speak(`Welcome back, ${name}. Ready to continue?`, { rate: 0.78 });
 }
 
-// Letters: speak the actual phonetic name correctly.
-// SpeechSynthesis pronounces single uppercase letters as letter names already,
-// but we add the sound word for learning context.
-const letterSound: Record<string, string> = {
-  A: 'ay', B: 'bee', C: 'see', D: 'dee', E: 'ee', F: 'eff', G: 'jee',
-  H: 'aitch', I: 'eye', J: 'jay', K: 'kay', L: 'el', M: 'em', N: 'en',
-  O: 'oh', P: 'pee', Q: 'cue', R: 'ar', S: 'ess', T: 'tee', U: 'you',
-  V: 'vee', W: 'double-you', X: 'ex', Y: 'why', Z: 'zee',
+// ---- Letter pronunciation ----
+// Use ONLY the proper letter name (no "this is" suffix that triggered odd cadence).
+// Spelling chosen so common TTS engines (Google, Apple, Microsoft) say the
+// correct alphabet letter name rather than a word.
+const letterPhonetic: Record<string, string> = {
+  A: 'ay',     B: 'bee',    C: 'see',    D: 'dee',     E: 'eee',
+  F: 'eff',    G: 'jee',    H: 'aitch',  I: 'eye',     J: 'jay',
+  K: 'kay',    L: 'ell',    M: 'em',     N: 'en',      O: 'oh',
+  P: 'pee',    Q: 'kyoo',   R: 'arr',    S: 'ess',     T: 'tee',
+  U: 'yoo',    V: 'vee',    W: 'double yoo', X: 'eks', Y: 'why',
+  Z: 'zee',
 };
 
-export function speakLetter(letter: string) {
+function pronounceLetter(letter: string): string {
   const L = letter.toUpperCase();
-  const sound = letterSound[L] || L;
-  // Use the letter name twice — natural cadence, no stretched vowels
-  speak(`${sound}. This is ${sound}.`, { rate: 0.9 });
+  return letterPhonetic[L] || L;
 }
+
+export function speakLetter(letter: string) {
+  // Speak the letter slowly, with a short calm pause then repeat for clarity.
+  const sound = pronounceLetter(letter);
+  speak(sound, { rate: 0.7, pitch: 1.0 });
+}
+
 export function speakLetterAuto(letter: string) {
   speakLetter(letter);
 }
 export function speakLetsTry() {
-  speak("Let's try together.");
+  speak("Let's try together.", { rate: 0.78 });
 }
 export function speakLevelUnlocked() {
-  speak('A new level is ready!');
+  speak('A new level is ready.', { rate: 0.78 });
 }
 export function speakExamStart() {
-  speak("Let's see how much you've learned. You can do this!", { rate: 0.95 });
+  speak("Let's see what you've learned. You can do this.", { rate: 0.78 });
 }
 export function speakExamComplete() {
-  speak('You passed the test! Amazing!', { rate: 0.95 });
+  speak('You passed the test. Amazing.', { rate: 0.78 });
 }
 
-// Rank announcement for stage complete
 export function speakRank(rank: string) {
-  speak(`${rank}! ${correctPhrases[Math.floor(Math.random() * correctPhrases.length)]}`, { rate: 0.9, pitch: 1.1 });
+  speak(`${rank}. ${correctPhrases[Math.floor(Math.random() * correctPhrases.length)]}`, { rate: 0.75, pitch: 1.0 });
 }

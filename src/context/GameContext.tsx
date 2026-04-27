@@ -2,7 +2,7 @@ import React, { createContext, useContext, useState, useCallback, useRef, useEff
 import { Language } from '@/lib/translations';
 import { GameTask, generateLevelTasks, TASKS_PER_LEVEL, TOTAL_LEVELS, TOTAL_STAGES } from '@/lib/gameData';
 
-export type AppScreen = 'onboarding' | 'language' | 'registration' | 'game' | 'dashboard' | 'store' | 'stages' | 'welcomeBack' | 'levelComplete' | 'stageComplete';
+export type AppScreen = 'onboarding' | 'language' | 'registration' | 'game' | 'dashboard' | 'store' | 'stages' | 'welcomeBack' | 'levelComplete' | 'stageComplete' | 'account' | 'leaderboard';
 
 const SAVE_KEY = 'flexikeys_save';
 

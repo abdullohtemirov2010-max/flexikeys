@@ -11,6 +11,8 @@ import WelcomeBackScreen from "@/components/screens/WelcomeBackScreen";
 import StageScreen from "@/components/screens/StageScreen";
 import LevelCompleteScreen from "@/components/screens/LevelCompleteScreen";
 import StageCompleteScreen from "@/components/screens/StageCompleteScreen";
+import AccountScreen from "@/components/screens/AccountScreen";
+import LeaderboardScreen from "@/components/screens/LeaderboardScreen";
 
 export const Route = createFileRoute("/")({
   head: () => ({
@@ -55,6 +57,10 @@ const AppContent: React.FC = () => {
       return <LevelCompleteScreen />;
     case "stageComplete":
       return <StageCompleteScreen />;
+    case "account":
+      return <AccountScreen />;
+    case "leaderboard":
+      return <LeaderboardScreen />;
     default:
       return <OnboardingScreen />;
   }
