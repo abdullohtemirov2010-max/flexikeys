@@ -1,26 +1,69 @@
 import { createFileRoute } from "@tanstack/react-router";
+import React from "react";
+import { GameProvider, useGame } from "@/context/GameContext";
+import OnboardingScreen from "@/components/screens/OnboardingScreen";
+import LanguageScreen from "@/components/screens/LanguageScreen";
+import RegistrationScreen from "@/components/screens/RegistrationScreen";
+import GameScreen from "@/components/screens/GameScreen";
+import DashboardScreen from "@/components/screens/DashboardScreen";
+import StoreScreen from "@/components/screens/StoreScreen";
+import WelcomeBackScreen from "@/components/screens/WelcomeBackScreen";
+import StageScreen from "@/components/screens/StageScreen";
+import LevelCompleteScreen from "@/components/screens/LevelCompleteScreen";
+import StageCompleteScreen from "@/components/screens/StageCompleteScreen";
 
 export const Route = createFileRoute("/")({
+  head: () => ({
+    meta: [
+      { title: "FlexiKeys — Small steps. Big progress." },
+      {
+        name: "description",
+        content:
+          "FlexiKeys helps kids learn the alphabet with a friendly cloud mascot, adaptive keyboards, and playful rewards.",
+      },
+      { property: "og:title", content: "FlexiKeys — Learn letters playfully" },
+      {
+        property: "og:description",
+        content:
+          "A gentle, adaptive alphabet game for kids. Tap, learn, and earn stars with your cloud friend.",
+      },
+    ],
+  }),
   component: Index,
 });
 
-// IMPORTANT: Replace this placeholder. For sites with multiple pages (About, Services, Contact, etc.),
-// create separate route files (about.tsx, services.tsx, contact.tsx) — don't put all pages in this file.
-function PlaceholderIndex() {
-  return (
-    <div
-      className="flex min-h-screen items-center justify-center"
-      style={{ backgroundColor: "#fcfbf8" }}
-    >
-      <img
-        data-lovable-blank-page-placeholder="REMOVE_THIS"
-        src="https://cdn.gpteng.co/blank-app-v1.svg"
-        alt="Your app will live here!"
-      />
-    </div>
-  );
-}
+const AppContent: React.FC = () => {
+  const { screen } = useGame();
+  switch (screen) {
+    case "onboarding":
+      return <OnboardingScreen />;
+    case "language":
+      return <LanguageScreen />;
+    case "registration":
+      return <RegistrationScreen />;
+    case "game":
+      return <GameScreen />;
+    case "dashboard":
+      return <DashboardScreen />;
+    case "store":
+      return <StoreScreen />;
+    case "welcomeBack":
+      return <WelcomeBackScreen />;
+    case "stages":
+      return <StageScreen />;
+    case "levelComplete":
+      return <LevelCompleteScreen />;
+    case "stageComplete":
+      return <StageCompleteScreen />;
+    default:
+      return <OnboardingScreen />;
+  }
+};
 
 function Index() {
-  return <PlaceholderIndex />;
+  return (
+    <GameProvider>
+      <AppContent />
+    </GameProvider>
+  );
 }
