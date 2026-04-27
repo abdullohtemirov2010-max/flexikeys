@@ -149,39 +149,64 @@ const GameScreen: React.FC = () => {
       </div>
 
       {/* Header */}
-      <div className="flex items-center justify-between px-4 py-3 bg-card/60 backdrop-blur-sm border-b border-border/50">
-        <button
-          onClick={() => setScreen('welcomeBack')}
-          className="text-muted-foreground hover:text-foreground text-sm font-medium px-3 py-2 rounded-xl transition-colors"
-        >
-          ← {t.back}
-        </button>
+      <div className="flex items-center justify-between gap-2 px-3 py-3 bg-card/60 backdrop-blur-sm border-b border-border/50">
+        {/* Left: rewards chips */}
+        <div className="flex items-center gap-2 text-sm font-semibold">
+          <span className="bg-accent/30 px-3 py-1.5 rounded-full text-accent-foreground">⭐ {stars}</span>
+          <span className="bg-reward-gold/30 px-3 py-1.5 rounded-full text-accent-foreground">🪙 {coins}</span>
+        </div>
+
+        {/* Center: big action buttons */}
         <div className="flex items-center gap-2">
           <button
             onClick={() => setScreen('store')}
-            className="relative flex items-center gap-1.5 bg-gradient-to-r from-amber-400 via-yellow-400 to-orange-400 hover:from-amber-500 hover:via-yellow-500 hover:to-orange-500 text-white font-bold text-base px-5 py-2.5 rounded-2xl shadow-lg shadow-amber-300/40 transition-all hover:scale-110 active:scale-95 animate-pulse-slow"
-            aria-label="Store"
+            className="relative flex items-center gap-1.5 bg-gradient-to-br from-pink-400 via-fuchsia-400 to-purple-500 hover:brightness-110 text-white font-bold px-4 py-2.5 rounded-2xl shadow-lg shadow-fuchsia-300/40 transition-all hover:scale-105 active:scale-95"
+            aria-label="Shop"
           >
-            <span className="text-2xl">🛍️</span>
-            <span className="text-sm font-bold drop-shadow-sm">Shop</span>
-            <span className="absolute -top-1 -right-1 w-3 h-3 bg-red-400 rounded-full animate-ping" />
-            <span className="absolute -top-1 -right-1 w-3 h-3 bg-red-400 rounded-full" />
+            <span className="text-2xl leading-none">🏬</span>
+            <span className="text-sm font-bold drop-shadow-sm">{t.shop || 'Shop'}</span>
+            <span className="absolute -top-1 -right-1 w-2.5 h-2.5 bg-red-400 rounded-full animate-ping" />
+            <span className="absolute -top-1 -right-1 w-2.5 h-2.5 bg-red-400 rounded-full" />
           </button>
           <button
-            onClick={() => setScreen('dashboard')}
-            className="text-muted-foreground hover:text-foreground text-xs font-medium px-3 py-2 rounded-xl transition-colors"
+            onClick={() => setScreen('leaderboard')}
+            className="flex items-center gap-1.5 bg-gradient-to-br from-amber-300 via-yellow-400 to-orange-500 hover:brightness-110 text-white font-bold px-4 py-2.5 rounded-2xl shadow-lg shadow-amber-300/40 transition-all hover:scale-105 active:scale-95"
+            aria-label="Leaderboard"
           >
-            📊
+            <span className="text-2xl leading-none">🏆</span>
+            <span className="text-sm font-bold drop-shadow-sm">{t.leaderboard || 'Top'}</span>
           </button>
         </div>
-        <div className="flex items-center gap-4 text-sm font-semibold">
-          <span className="bg-accent/30 px-3 py-1 rounded-full text-accent-foreground">
-            ⭐ {stars}
+
+        {/* Right: Account chip with child's name */}
+        <button
+          onClick={() => setScreen('account')}
+          className="flex items-center gap-2 bg-card border border-border hover:border-primary hover:bg-primary/5 px-2.5 py-1.5 rounded-full transition shadow-sm"
+          aria-label="Account"
+        >
+          <span className="w-7 h-7 rounded-full bg-gradient-to-br from-primary to-primary/70 flex items-center justify-center text-white text-sm font-bold">
+            {(childName || '?').charAt(0).toUpperCase()}
           </span>
-          <span className="bg-reward-gold/30 px-3 py-1 rounded-full text-accent-foreground">
-            🪙 {coins}
+          <span className="text-sm font-semibold text-foreground max-w-[80px] truncate hidden sm:inline">
+            {childName || t.account}
           </span>
-        </div>
+        </button>
+      </div>
+
+      {/* Back + Dashboard secondary row */}
+      <div className="flex items-center justify-between px-4 pt-2">
+        <button
+          onClick={() => setScreen('welcomeBack')}
+          className="text-muted-foreground hover:text-foreground text-xs font-medium transition-colors"
+        >
+          ← {t.back}
+        </button>
+        <button
+          onClick={() => setScreen('dashboard')}
+          className="text-muted-foreground hover:text-foreground text-xs font-medium transition-colors"
+        >
+          📊 {t.parentDashboard}
+        </button>
       </div>
 
       {/* Environment label */}
