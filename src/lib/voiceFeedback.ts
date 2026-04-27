@@ -61,17 +61,27 @@ const stageCompletePhrases = [
 ];
 
 // Default speech settings — slower, calm, clear
-const DEFAULT_RATE = 0.78;   // noticeably slower for cognitive accessibility
-const DEFAULT_PITCH = 1.0;   // neutral, not childish
+function userRate(fallback: number): number {
+  if (typeof window === 'undefined') return fallback;
+  const v = parseFloat(localStorage.getItem('fk_voice_speed') || '');
+  return isNaN(v) ? fallback : v;
+}
+function userVolume(): number {
+  if (typeof window === 'undefined') return 1;
+  const v = parseFloat(localStorage.getItem('fk_volume') || '');
+  return isNaN(v) ? 1 : v;
+}
+const DEFAULT_RATE = 0.78;
+const DEFAULT_PITCH = 1.0;
 
 function speak(text: string, opts: { rate?: number; pitch?: number; immediate?: boolean } = {}) {
   if (typeof window === 'undefined' || !('speechSynthesis' in window)) return;
   try {
     if (opts.immediate !== false) speechSynthesis.cancel();
     const u = new SpeechSynthesisUtterance(text);
-    u.rate = opts.rate ?? DEFAULT_RATE;
+    u.rate = opts.rate ?? userRate(DEFAULT_RATE);
     u.pitch = opts.pitch ?? DEFAULT_PITCH;
-    u.volume = 1.0;
+    u.volume = userVolume();
     u.lang = 'en-US';
     const v = pickBestVoice();
     if (v) u.voice = v;
