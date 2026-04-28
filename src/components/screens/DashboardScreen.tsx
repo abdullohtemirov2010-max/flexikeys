@@ -1,6 +1,12 @@
 import React, { useState } from 'react';
 import { useGame } from '@/context/GameContext';
 import translations from '@/lib/translations';
+import iconParent from '@/assets/icon-parent.png';
+import iconBack from '@/assets/icon-back.png';
+import iconSettings from '@/assets/icon-settings.png';
+import iconStar from '@/assets/icon-star.png';
+import iconCoin from '@/assets/icon-coin.png';
+import iconTrophy from '@/assets/icon-trophy.png';
 
 /**
  * Parent Dashboard — designed around evidence-based recommendations for parents
@@ -59,6 +65,13 @@ const DashboardScreen: React.FC = () => {
     }))
     .sort((a, b) => a.accuracy - b.accuracy);
 
+  const tabIcons: Record<Tab, string> = {
+    overview: '📊',
+    practice: '🎯',
+    settings: '',
+    tips: '💡',
+    resources: '📚',
+  };
   const tabs: { key: Tab; label: string; icon: string }[] = [
     { key: 'overview',  label: 'Overview',  icon: '📊' },
     { key: 'practice',  label: 'Practice',  icon: '🎯' },
@@ -68,32 +81,65 @@ const DashboardScreen: React.FC = () => {
   ];
 
   return (
-    <div className="min-h-screen flex flex-col bg-gradient-to-b from-primary/5 via-background to-background animate-fade-in-up">
-      {/* Header */}
-      <div className="flex items-center px-4 py-3 bg-card/70 backdrop-blur-md border-b border-border/50">
-        <button
-          onClick={() => setScreen('game')}
-          className="text-muted-foreground hover:text-foreground text-sm font-medium px-3 py-2 rounded-xl transition-colors"
-        >
-          ← {t.back}
-        </button>
-        <h2 className="flex-1 text-center text-lg font-bold text-foreground">📊 {t.parentDashboard}</h2>
-        <div className="w-16" />
-      </div>
+    <div className="min-h-screen flex flex-col bg-gradient-to-b from-blue-50 via-background to-background animate-fade-in-up">
+      {/* Big 3D Header */}
+      <div className="relative px-4 pt-4 pb-6 bg-gradient-to-br from-blue-100 via-sky-50 to-white border-b border-border/50 overflow-hidden">
+        {/* Decorative blobs */}
+        <div className="absolute -top-10 -right-10 w-40 h-40 rounded-full bg-blue-200/40 blur-2xl" />
+        <div className="absolute -bottom-10 -left-10 w-40 h-40 rounded-full bg-pink-200/40 blur-2xl" />
 
-      {/* Child summary */}
-      <div className="px-4 pt-4 max-w-lg mx-auto w-full">
-        <div className="bg-gradient-to-br from-primary/15 to-primary/5 rounded-2xl border border-primary/20 p-4 flex items-center gap-3">
-          <div className="w-12 h-12 rounded-full bg-primary/20 flex items-center justify-center text-2xl">☁️</div>
+        <div className="relative flex items-center justify-between mb-4">
+          <button
+            onClick={() => setScreen('game')}
+            className="hover:scale-105 active:scale-95 transition-transform"
+            aria-label="Back"
+          >
+            <img src={iconBack} alt="Back" className="w-12 h-12 drop-shadow-lg" />
+          </button>
+          <button
+            onClick={() => setTab('settings')}
+            className="hover:scale-105 active:scale-95 transition-transform"
+            aria-label="Settings"
+          >
+            <img src={iconSettings} alt="Settings" className="w-12 h-12 drop-shadow-lg" />
+          </button>
+        </div>
+
+        <div className="relative flex items-center gap-4 max-w-lg mx-auto">
+          <img src={iconParent} alt="" className="w-24 h-24 drop-shadow-xl" />
           <div className="flex-1">
-            <p className="font-bold text-foreground">{childName}</p>
-            <p className="text-xs text-muted-foreground">
-              {childAge ? `${childAge} years · ` : ''}Stage {stage}/{unlockedStages} · Level {level}
+            <p className="text-xs font-semibold text-blue-700 uppercase tracking-wider">Parent Dashboard</p>
+            <h1 className="text-2xl md:text-3xl font-black text-foreground leading-tight">
+              {childName ? `${childName}'s Progress` : 'Welcome'}
+            </h1>
+            <p className="text-sm text-muted-foreground mt-0.5">
+              {childAge ? `${childAge} years old · ` : ''}Stage {stage}/{unlockedStages} · Level {level}
             </p>
           </div>
-          <div className="text-right">
-            <p className="text-xs text-muted-foreground">Today</p>
-            <p className="text-sm font-bold text-foreground">{timeSpent} min</p>
+        </div>
+
+        {/* Quick stat strip with 3D icons */}
+        <div className="relative grid grid-cols-3 gap-2 mt-4 max-w-lg mx-auto">
+          <div className="bg-white rounded-2xl p-2 shadow-md border border-amber-100 flex items-center gap-2">
+            <img src={iconStar} alt="" className="w-9 h-9" />
+            <div>
+              <p className="text-lg font-black text-foreground leading-none">{stars}</p>
+              <p className="text-[10px] text-muted-foreground">Stars</p>
+            </div>
+          </div>
+          <div className="bg-white rounded-2xl p-2 shadow-md border border-yellow-100 flex items-center gap-2">
+            <img src={iconCoin} alt="" className="w-9 h-9" />
+            <div>
+              <p className="text-lg font-black text-foreground leading-none">{coins}</p>
+              <p className="text-[10px] text-muted-foreground">Coins</p>
+            </div>
+          </div>
+          <div className="bg-white rounded-2xl p-2 shadow-md border border-blue-100 flex items-center gap-2">
+            <img src={iconTrophy} alt="" className="w-9 h-9" />
+            <div>
+              <p className="text-lg font-black text-foreground leading-none">{timeSpent}m</p>
+              <p className="text-[10px] text-muted-foreground">Today</p>
+            </div>
           </div>
         </div>
       </div>
