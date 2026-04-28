@@ -8,6 +8,12 @@ import translations from '@/lib/translations';
 import { speakCorrect, speakEncourage, speakLetter, speakLetterAuto, speakLetsTry, speakExamStart, unlockSpeech } from '@/lib/voiceFeedback';
 import { TASKS_PER_LEVEL } from '@/lib/gameData';
 import { getLevelEnvironment } from '@/lib/levelEnvironments';
+import iconCoin from '@/assets/icon-coin.png';
+import iconStar from '@/assets/icon-star.png';
+import iconShop from '@/assets/icon-shop.png';
+import iconTrophy from '@/assets/icon-trophy.png';
+import iconParent from '@/assets/icon-parent.png';
+import iconBack from '@/assets/icon-back.png';
 
 const GameScreen: React.FC = () => {
   const {
@@ -150,31 +156,37 @@ const GameScreen: React.FC = () => {
 
       {/* Header */}
       <div className="flex items-center justify-between gap-2 px-3 py-3 bg-card/60 backdrop-blur-sm border-b border-border/50">
-        {/* Left: rewards chips */}
-        <div className="flex items-center gap-2 text-sm font-semibold">
-          <span className="bg-accent/30 px-3 py-1.5 rounded-full text-accent-foreground">⭐ {stars}</span>
-          <span className="bg-reward-gold/30 px-3 py-1.5 rounded-full text-accent-foreground">🪙 {coins}</span>
+        {/* Left: rewards chips with 3D icons */}
+        <div className="flex items-center gap-2 text-sm font-bold">
+          <span className="flex items-center gap-1 bg-amber-50 border border-amber-200 px-2 py-1 rounded-full text-amber-900 shadow-sm">
+            <img src={iconStar} alt="" className="w-7 h-7 drop-shadow" />
+            {stars}
+          </span>
+          <span className="flex items-center gap-1 bg-yellow-50 border border-yellow-200 px-2 py-1 rounded-full text-yellow-900 shadow-sm">
+            <img src={iconCoin} alt="" className="w-7 h-7 drop-shadow" />
+            {coins}
+          </span>
         </div>
 
-        {/* Center: big action buttons */}
+        {/* Center: big action buttons with 3D icons */}
         <div className="flex items-center gap-2">
           <button
             onClick={() => setScreen('store')}
-            className="relative flex items-center gap-1.5 bg-gradient-to-br from-pink-400 via-fuchsia-400 to-purple-500 hover:brightness-110 text-white font-bold px-4 py-2.5 rounded-2xl shadow-lg shadow-fuchsia-300/40 transition-all hover:scale-105 active:scale-95"
+            className="relative flex items-center gap-1.5 bg-white hover:bg-pink-50 border-2 border-pink-200 text-pink-700 font-bold px-3 py-1.5 rounded-2xl shadow-lg transition-all hover:scale-105 active:scale-95"
             aria-label="Shop"
           >
-            <span className="text-2xl leading-none">🏬</span>
-            <span className="text-sm font-bold drop-shadow-sm">{t.shop || 'Shop'}</span>
+            <img src={iconShop} alt="" className="w-9 h-9 drop-shadow" />
+            <span className="text-sm font-bold hidden sm:inline">{t.shop || 'Shop'}</span>
             <span className="absolute -top-1 -right-1 w-2.5 h-2.5 bg-red-400 rounded-full animate-ping" />
             <span className="absolute -top-1 -right-1 w-2.5 h-2.5 bg-red-400 rounded-full" />
           </button>
           <button
             onClick={() => setScreen('leaderboard')}
-            className="flex items-center gap-1.5 bg-gradient-to-br from-amber-300 via-yellow-400 to-orange-500 hover:brightness-110 text-white font-bold px-4 py-2.5 rounded-2xl shadow-lg shadow-amber-300/40 transition-all hover:scale-105 active:scale-95"
+            className="flex items-center gap-1.5 bg-white hover:bg-amber-50 border-2 border-amber-200 text-amber-700 font-bold px-3 py-1.5 rounded-2xl shadow-lg transition-all hover:scale-105 active:scale-95"
             aria-label="Leaderboard"
           >
-            <span className="text-2xl leading-none">🏆</span>
-            <span className="text-sm font-bold drop-shadow-sm">{t.leaderboard || 'Top'}</span>
+            <img src={iconTrophy} alt="" className="w-9 h-9 drop-shadow" />
+            <span className="text-sm font-bold hidden sm:inline">{t.leaderboard || 'Top'}</span>
           </button>
         </div>
 
@@ -193,19 +205,22 @@ const GameScreen: React.FC = () => {
         </button>
       </div>
 
-      {/* Back + Dashboard secondary row */}
+      {/* Back + Parent Dashboard secondary row with 3D icons */}
       <div className="flex items-center justify-between px-4 pt-2">
         <button
           onClick={() => setScreen('welcomeBack')}
-          className="text-muted-foreground hover:text-foreground text-xs font-medium transition-colors"
+          className="flex items-center gap-1.5 text-foreground hover:scale-105 active:scale-95 transition-transform"
+          aria-label="Back"
         >
-          ← {t.back}
+          <img src={iconBack} alt="" className="w-8 h-8 drop-shadow" />
+          <span className="text-xs font-semibold">{t.back}</span>
         </button>
         <button
           onClick={() => setScreen('dashboard')}
-          className="text-muted-foreground hover:text-foreground text-xs font-medium transition-colors"
+          className="flex items-center gap-1.5 bg-white border-2 border-blue-200 hover:bg-blue-50 text-blue-700 font-bold px-3 py-1.5 rounded-2xl shadow-md transition-all hover:scale-105 active:scale-95"
         >
-          📊 {t.parentDashboard}
+          <img src={iconParent} alt="" className="w-8 h-8 drop-shadow" />
+          <span className="text-xs font-bold">{t.parentDashboard}</span>
         </button>
       </div>
 
