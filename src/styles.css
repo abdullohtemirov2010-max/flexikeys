@@ -303,3 +303,31 @@
   100% { transform: translateY(120vh) rotate(720deg); opacity: 0; }
 }
 .animate-confetti { animation: confetti linear forwards; }
+
+/* ===== Earth → World Map intro ===== */
+@keyframes earth-spin {
+  0%   { transform: rotate(0deg) scale(0.4); opacity: 0; }
+  20%  { transform: rotate(180deg) scale(1); opacity: 1; }
+  70%  { transform: rotate(720deg) scale(1.05); opacity: 1; }
+  100% { transform: rotate(900deg) scale(2.4); opacity: 0; }
+}
+.animate-earth-spin { animation: earth-spin 3.2s cubic-bezier(0.4, 0, 0.2, 1) forwards; }
+
+@keyframes map-reveal {
+  0%   { transform: scale(1.4); opacity: 0; filter: blur(12px); }
+  100% { transform: scale(1); opacity: 1; filter: blur(0); }
+}
+.animate-map-reveal { animation: map-reveal 1.2s ease-out forwards; }
+
+@keyframes pin-drop {
+  0%   { transform: translate(-50%, -200%) scale(0.4); opacity: 0; }
+  60%  { transform: translate(-50%, -45%) scale(1.2); opacity: 1; }
+  100% { transform: translate(-50%, -50%) scale(1); opacity: 1; }
+}
+.animate-pin-drop { animation: pin-drop 0.6s cubic-bezier(0.34, 1.56, 0.64, 1) both; }
+
+@keyframes star-twinkle {
+  0%, 100% { opacity: 0.2; transform: scale(0.8); }
+  50%      { opacity: 1; transform: scale(1.2); }
+}
+.animate-twinkle { animation: star-twinkle 2s ease-in-out infinite; }
