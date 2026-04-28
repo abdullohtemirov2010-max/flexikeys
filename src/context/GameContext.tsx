@@ -158,8 +158,10 @@ export function GameProvider({ children }: { children: React.ReactNode }) {
   }, [adaptiveKeyCount, weakLetters, setScreen]);
 
   const startGame = useCallback(() => {
-    startLevel(stage, level);
-  }, [stage, level, startLevel]);
+    // Show world map (with earth intro) before first level
+    sessionStorage.removeItem('fk_seen_earth');
+    setScreen('stages');
+  }, [setScreen]);
 
   const resumeGame = useCallback(() => {
     startLevel(stage, level);
