@@ -55,6 +55,25 @@ const GameScreen: React.FC = () => {
     };
   }, []);
 
+  // Struggle detection: if no answer for 7s OR 2+ mistakes, mascot encourages.
+  useEffect(() => {
+    if (!currentTask || disabled) return;
+    if (mistakesInTask >= 2 && mascotMood !== 'encouraging') {
+      setMascotMood('encouraging');
+      setMessage(t.almostThere);
+      speakEncourage();
+      return;
+    }
+    const idle = window.setTimeout(() => {
+      if (!disabled) {
+        setMascotMood('encouraging');
+        setMessage(t.tryAgain);
+        speakEncourage();
+      }
+    }, 8000);
+    return () => window.clearTimeout(idle);
+  }, [currentTask, disabled, mistakesInTask, mascotMood, t]);
+
   useEffect(() => {
     if (!currentTask) return;
 
