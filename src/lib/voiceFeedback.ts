@@ -120,27 +120,28 @@ export function speakWelcomeBack(name: string) {
 }
 
 // ---- Letter pronunciation ----
-// Use ONLY the proper letter name (no "this is" suffix that triggered odd cadence).
-// Spelling chosen so common TTS engines (Google, Apple, Microsoft) say the
-// correct alphabet letter name rather than a word.
-const letterPhonetic: Record<string, string> = {
-  A: 'ay',     B: 'bee',    C: 'see',    D: 'dee',     E: 'eee',
-  F: 'eff',    G: 'jee',    H: 'aitch',  I: 'eye',     J: 'jay',
-  K: 'kay',    L: 'ell',    M: 'em',     N: 'en',      O: 'oh',
-  P: 'pee',    Q: 'kyoo',   R: 'arr',    S: 'ess',     T: 'tee',
-  U: 'yoo',    V: 'vee',    W: 'double yoo', X: 'eks', Y: 'why',
-  Z: 'zee',
+// Carrier-phrase strategy: "The letter X, as in WORD." prevents TTS engines
+// from collapsing isolated letters into wrong words (e.g. A → "eye", E → "I").
+// Anchor words use a strong, unambiguous initial sound for each letter.
+const letterAnchor: Record<string, string> = {
+  A: 'apple',    B: 'ball',     C: 'cat',      D: 'dog',      E: 'egg',
+  F: 'fish',     G: 'goat',     H: 'hat',      I: 'igloo',    J: 'jam',
+  K: 'kite',     L: 'lion',     M: 'moon',     N: 'nest',     O: 'orange',
+  P: 'pig',      Q: 'queen',    R: 'rain',     S: 'sun',      T: 'tree',
+  U: 'umbrella', V: 'van',      W: 'water',    X: 'box',      Y: 'yellow',
+  Z: 'zebra',
 };
 
-function pronounceLetter(letter: string): string {
-  const L = letter.toUpperCase();
-  return letterPhonetic[L] || L;
-}
-
 export function speakLetter(letter: string) {
-  // Speak the letter slowly, with a short calm pause then repeat for clarity.
-  const sound = pronounceLetter(letter);
-  speak(sound, { rate: 0.7, pitch: 1.0 });
+  const L = letter.toUpperCase();
+  const anchor = letterAnchor[L];
+  // Pronounce the actual letter name first (with a comma so the voice pauses
+  // and articulates clearly), then anchor it with a familiar word so the
+  // listener — and the TTS engine — both lock onto the right sound.
+  const phrase = anchor
+    ? `The letter ${L}, as in ${anchor}.`
+    : `The letter ${L}.`;
+  speak(phrase, { rate: 0.72, pitch: 1.0 });
 }
 
 export function speakLetterAuto(letter: string) {
