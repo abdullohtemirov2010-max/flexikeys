@@ -1,46 +1,50 @@
 import React, { useState } from 'react';
 import { useGame } from '@/context/GameContext';
-import translations from '@/lib/translations';
 import { TOTAL_STAGES } from '@/lib/gameData';
 import EarthIntro from '@/components/EarthIntro';
-import worldMap from '@/assets/world-map-flags.png';
+import WorldMapSVG from '@/components/WorldMapSVG';
+import { STAGE_GEO, project, MAP_W, MAP_H } from '@/lib/geo';
 import iconBack from '@/assets/icon-back.png';
+import flagUz from '@/assets/flags/uz.svg';
+import flagTr from '@/assets/flags/tr.svg';
+import flagEg from '@/assets/flags/eg.svg';
+import flagKe from '@/assets/flags/ke.svg';
+import flagIn from '@/assets/flags/in.svg';
+import flagJp from '@/assets/flags/jp.svg';
+import flagAu from '@/assets/flags/au.svg';
+import flagBr from '@/assets/flags/br.svg';
+import flagUs from '@/assets/flags/us.svg';
 
-/**
- * 10 country-themed stages with curriculum tailored for autism / Down syndrome learners.
- * Curriculum order is research-informed: alphabet recognition → letter formation →
- * numbers → shapes/colors → words → social/emotion → daily routines → fine motor →
- * simple sentences → mastery.
- */
+const FLAG_URL: Record<string, string> = {
+  uz: flagUz, tr: flagTr, eg: flagEg, ke: flagKe, in: flagIn,
+  jp: flagJp, au: flagAu, br: flagBr, us: flagUs,
+};
+
 interface StageTheme {
-  country: string;
-  flag: string;
   title: string;
   desc: string;
-  /** Position on world map background, % from left/top */
-  x: number;
-  y: number;
 }
 
 const stageThemes: Record<number, StageTheme> = {
-  1:  { country: 'Uzbekistan',    flag: '🇺🇿', title: 'Master Alphabets',   desc: 'Recognize letters A–Z',           x: 64, y: 36 },
-  2:  { country: 'Turkey',        flag: '🇹🇷', title: 'Write Alphabets',    desc: 'Trace & form each letter',        x: 56, y: 38 },
-  3:  { country: 'Egypt',         flag: '🇪🇬', title: 'Numbers 1–20',       desc: 'Count and recognize numbers',     x: 56, y: 50 },
-  4:  { country: 'Kenya',         flag: '🇰🇪', title: 'Shapes & Colors',    desc: 'Match shapes and primary colors', x: 58, y: 62 },
-  5:  { country: 'India',         flag: '🇮🇳', title: 'First Words',        desc: 'CVC words: cat, dog, sun',        x: 70, y: 48 },
-  6:  { country: 'Japan',         flag: '🇯🇵', title: 'Emotions & Faces',   desc: 'Identify happy, sad, calm',       x: 84, y: 42 },
-  7:  { country: 'Australia',     flag: '🇦🇺', title: 'Daily Routines',     desc: 'Brush teeth, eat, sleep',         x: 84, y: 72 },
-  8:  { country: 'Brazil',        flag: '🇧🇷', title: 'Sentence Builder',   desc: 'I am happy. I see a cat.',        x: 32, y: 62 },
-  9:  { country: 'United States', flag: '🇺🇸', title: 'Reading Together',   desc: 'Short stories aloud',             x: 18, y: 38 },
-  10: { country: 'World Champion',flag: '🏆', title: 'Grand Mastery',      desc: 'Final test of all skills',        x: 50, y: 18 },
+  1:  { title: 'Master Alphabets',   desc: 'Recognize letters A–Z' },
+  2:  { title: 'Write Alphabets',    desc: 'Trace & form each letter' },
+  3:  { title: 'Numbers 1–20',       desc: 'Count and recognize numbers' },
+  4:  { title: 'Shapes & Colors',    desc: 'Match shapes and primary colors' },
+  5:  { title: 'First Words',        desc: 'CVC words: cat, dog, sun' },
+  6:  { title: 'Emotions & Faces',   desc: 'Identify happy, sad, calm' },
+  7:  { title: 'Daily Routines',     desc: 'Brush teeth, eat, sleep' },
+  8:  { title: 'Sentence Builder',   desc: 'I am happy. I see a cat.' },
+  9:  { title: 'Reading Together',   desc: 'Short stories aloud' },
+  10: { title: 'Grand Mastery',      desc: 'Final test of all skills' },
 };
+
+const HIGHLIGHT_ISO = ['uz', 'tr', 'eg', 'ke', 'in', 'jp', 'au', 'br', 'us'];
 
 const StageScreen: React.FC = () => {
   const { unlockedStages, startLevel, setScreen } = useGame();
-  const [showIntro, setShowIntro] = useState(() => {
-    // Show intro once per session
-    return sessionStorage.getItem('fk_seen_earth') !== '1';
-  });
+  const [showIntro, setShowIntro] = useState(
+    () => sessionStorage.getItem('fk_seen_earth') !== '1',
+  );
   const [selectedStage, setSelectedStage] = useState<number | null>(null);
 
   const handleIntroComplete = () => {
@@ -53,16 +57,13 @@ const StageScreen: React.FC = () => {
     setSelectedStage(n);
   };
 
-  const startStage = (n: number) => {
-    startLevel(n, 1);
-  };
-
   if (showIntro) return <EarthIntro onComplete={handleIntroComplete} />;
 
-  const selected = selectedStage ? stageThemes[selectedStage] : null;
+  const selected = selectedStage ? STAGE_GEO[selectedStage] : null;
+  const selectedTheme = selectedStage ? stageThemes[selectedStage] : null;
 
   return (
-    <div className="min-h-screen flex flex-col bg-gradient-to-b from-sky-200 via-sky-100 to-blue-100 animate-fade-in-up overflow-hidden">
+    <div className="min-h-screen flex flex-col bg-gradient-to-b from-sky-100 via-sky-50 to-blue-50 animate-fade-in-up">
       {/* Header */}
       <div className="flex items-center px-4 py-3 bg-card/80 backdrop-blur-md border-b border-border/50 z-20 shadow-sm">
         <button
@@ -79,98 +80,78 @@ const StageScreen: React.FC = () => {
       </div>
 
       {/* Map area */}
-      <div className="flex-1 relative overflow-auto">
-        <div className="relative w-full" style={{ minHeight: '70vh' }}>
-          {/* Map background */}
-          <img
-            src={worldMap}
-            alt="World map"
-            className="absolute inset-0 w-full h-full object-cover animate-map-reveal"
-            style={{ minHeight: '70vh' }}
+      <div className="relative w-full bg-[#bfe3ff]">
+        <div
+          className="relative w-full"
+          style={{ aspectRatio: `${MAP_W} / ${MAP_H}` }}
+        >
+          <WorldMapSVG
+            highlighted={HIGHLIGHT_ISO}
+            className="absolute inset-0 w-full h-full [&_svg]:w-full [&_svg]:h-full animate-map-reveal"
           />
-          {/* Soft overlay for readability */}
-          <div className="absolute inset-0 bg-gradient-to-b from-transparent via-transparent to-blue-100/30" />
 
-          {/* Country pins */}
-          {Array.from({ length: TOTAL_STAGES }, (_, i) => i + 1).map(n => {
-            const theme = stageThemes[n];
-            const unlocked = n <= unlockedStages;
-            const isCurrent = n === unlockedStages;
-            return (
-              <button
-                key={n}
-                onClick={() => handleStageClick(n)}
-                disabled={!unlocked}
-                className="absolute group animate-pin-drop"
-                style={{
-                  left: `${theme.x}%`,
-                  top: `${theme.y}%`,
-                  animationDelay: `${0.6 + n * 0.08}s`,
-                }}
-              >
-                {/* Pin */}
-                <div className="relative flex flex-col items-center -translate-x-1/2 -translate-y-1/2">
-                  {/* Country chip */}
-                  <div
-                    className={`relative flex items-center gap-1 px-2 py-1 rounded-full text-xs font-bold whitespace-nowrap shadow-lg border-2 ${
-                      unlocked
-                        ? 'bg-white text-foreground border-white hover:scale-110 cursor-pointer'
-                        : 'bg-white/60 text-muted-foreground border-white/60 grayscale cursor-not-allowed'
-                    } transition-transform`}
-                  >
-                    <span className="text-base leading-none">{theme.flag}</span>
-                    <span>{n}</span>
-                  </div>
-                  {/* Stem */}
-                  <div className="w-0.5 h-3 bg-foreground/40" />
-                  {/* Dot on map */}
-                  <div
-                    className={`w-3 h-3 rounded-full border-2 border-white shadow-md ${
-                      unlocked ? 'bg-red-500' : 'bg-gray-400'
-                    } ${isCurrent ? 'animate-pulse-slow ring-4 ring-red-300/50' : ''}`}
-                  />
-
-                  {/* Lock badge */}
-                  {!unlocked && (
-                    <span className="absolute -top-2 -right-3 text-sm">🔒</span>
-                  )}
-                  {/* You-are-here marker */}
-                  {isCurrent && (
-                    <span className="absolute -top-7 text-xl animate-bounce">📍</span>
-                  )}
-                </div>
-              </button>
-            );
-          })}
-        </div>
-
-        {/* Legend / curriculum list below map */}
-        <div className="px-4 py-6 bg-gradient-to-b from-blue-100/0 via-blue-50 to-white">
-          <p className="text-center text-sm font-semibold text-muted-foreground mb-3">
-            ✈️ Your Learning Journey
-          </p>
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 max-w-2xl mx-auto">
+          {/* Pin overlay — uses absolute % positioning matching the projection */}
+          <div className="absolute inset-0 pointer-events-none">
             {Array.from({ length: TOTAL_STAGES }, (_, i) => i + 1).map(n => {
-              const theme = stageThemes[n];
+              const geo = STAGE_GEO[n];
+              const { x, y } = project(geo.lon, geo.lat);
+              const xPct = (x / MAP_W) * 100;
+              const yPct = (y / MAP_H) * 100;
               const unlocked = n <= unlockedStages;
+              const isCurrent = n === unlockedStages;
+              const flagSrc = FLAG_URL[geo.iso];
               return (
                 <button
                   key={n}
                   onClick={() => handleStageClick(n)}
                   disabled={!unlocked}
-                  className={`flex items-center gap-3 p-3 rounded-2xl border-2 text-left transition ${
-                    unlocked
-                      ? 'bg-white border-primary/20 hover:border-primary hover:shadow-md cursor-pointer'
-                      : 'bg-muted/30 border-muted opacity-60 cursor-not-allowed'
-                  }`}
+                  className="absolute pointer-events-auto group animate-pin-drop -translate-x-1/2 -translate-y-full"
+                  style={{
+                    left: `${xPct}%`,
+                    top: `${yPct}%`,
+                    animationDelay: `${0.4 + n * 0.07}s`,
+                  }}
+                  aria-label={`Stage ${n} ${geo.country}`}
                 >
-                  <span className="text-3xl">{theme.flag}</span>
-                  <div className="flex-1 min-w-0">
-                    <p className="text-xs text-muted-foreground">Stage {n} · {theme.country}</p>
-                    <p className="font-bold text-sm text-foreground truncate">{theme.title}</p>
-                    <p className="text-xs text-muted-foreground truncate">{theme.desc}</p>
+                  <div className="flex flex-col items-center">
+                    {/* Flat circular flag marker */}
+                    <div
+                      className={`relative rounded-full overflow-hidden border-2 shadow-md transition-transform ${
+                        unlocked
+                          ? 'border-white bg-white hover:scale-110 cursor-pointer'
+                          : 'border-white/70 grayscale opacity-70 cursor-not-allowed'
+                      } ${isCurrent ? 'ring-4 ring-red-400/60 animate-pulse-slow' : ''}`}
+                      style={{ width: 22, height: 22 }}
+                    >
+                      {flagSrc ? (
+                        <img
+                          src={flagSrc}
+                          alt=""
+                          className="w-full h-full object-cover"
+                          draggable={false}
+                        />
+                      ) : (
+                        <div className="w-full h-full flex items-center justify-center bg-amber-300 text-[10px]">
+                          🏆
+                        </div>
+                      )}
+                      {/* Stage number badge */}
+                      <span className="absolute -top-2 -right-2 bg-red-500 text-white text-[9px] font-black rounded-full w-4 h-4 flex items-center justify-center border border-white shadow">
+                        {n}
+                      </span>
+                    </div>
+                    {/* Tail */}
+                    <div className="w-px h-2 bg-slate-700/70" />
+                    {/* Anchor dot — sits exactly on the geo coordinate */}
+                    <div
+                      className={`w-1.5 h-1.5 rounded-full ${
+                        unlocked ? 'bg-red-600' : 'bg-slate-400'
+                      } shadow`}
+                    />
+                    {!unlocked && (
+                      <span className="absolute -top-3 -right-3 text-[10px]">🔒</span>
+                    )}
                   </div>
-                  {!unlocked && <span className="text-lg">🔒</span>}
                 </button>
               );
             })}
@@ -178,8 +159,51 @@ const StageScreen: React.FC = () => {
         </div>
       </div>
 
+      {/* Curriculum list */}
+      <div className="px-4 py-6 bg-gradient-to-b from-blue-50 to-white">
+        <p className="text-center text-sm font-semibold text-muted-foreground mb-3">
+          ✈️ Your Learning Journey
+        </p>
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 max-w-2xl mx-auto">
+          {Array.from({ length: TOTAL_STAGES }, (_, i) => i + 1).map(n => {
+            const geo = STAGE_GEO[n];
+            const theme = stageThemes[n];
+            const unlocked = n <= unlockedStages;
+            const flagSrc = FLAG_URL[geo.iso];
+            return (
+              <button
+                key={n}
+                onClick={() => handleStageClick(n)}
+                disabled={!unlocked}
+                className={`flex items-center gap-3 p-3 rounded-2xl border-2 text-left transition ${
+                  unlocked
+                    ? 'bg-white border-primary/20 hover:border-primary hover:shadow-md cursor-pointer'
+                    : 'bg-muted/30 border-muted opacity-60 cursor-not-allowed'
+                }`}
+              >
+                {flagSrc ? (
+                  <img
+                    src={flagSrc}
+                    alt={geo.country}
+                    className="w-9 h-9 rounded-full object-cover border-2 border-white shadow"
+                  />
+                ) : (
+                  <span className="w-9 h-9 rounded-full bg-amber-200 flex items-center justify-center text-xl border-2 border-white shadow">🏆</span>
+                )}
+                <div className="flex-1 min-w-0">
+                  <p className="text-xs text-muted-foreground">Stage {n} · {geo.country}</p>
+                  <p className="font-bold text-sm text-foreground truncate">{theme.title}</p>
+                  <p className="text-xs text-muted-foreground truncate">{theme.desc}</p>
+                </div>
+                {!unlocked && <span className="text-lg">🔒</span>}
+              </button>
+            );
+          })}
+        </div>
+      </div>
+
       {/* Stage detail modal */}
-      {selected && selectedStage && (
+      {selected && selectedStage && selectedTheme && (
         <div
           className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm p-4 animate-fade-in-up"
           onClick={() => setSelectedStage(null)}
@@ -189,12 +213,20 @@ const StageScreen: React.FC = () => {
             onClick={e => e.stopPropagation()}
           >
             <div className="text-center space-y-3">
-              <div className="text-7xl">{selected.flag}</div>
+              {FLAG_URL[selected.iso] ? (
+                <img
+                  src={FLAG_URL[selected.iso]}
+                  alt={selected.country}
+                  className="mx-auto w-24 h-24 rounded-full object-cover border-4 border-white shadow-lg"
+                />
+              ) : (
+                <div className="text-7xl">🏆</div>
+              )}
               <p className="text-xs font-medium text-muted-foreground">
                 Stage {selectedStage} · {selected.country}
               </p>
-              <h3 className="text-2xl font-black text-foreground">{selected.title}</h3>
-              <p className="text-sm text-muted-foreground">{selected.desc}</p>
+              <h3 className="text-2xl font-black text-foreground">{selectedTheme.title}</h3>
+              <p className="text-sm text-muted-foreground">{selectedTheme.desc}</p>
             </div>
             <div className="flex gap-2 mt-6">
               <button
@@ -204,7 +236,7 @@ const StageScreen: React.FC = () => {
                 Cancel
               </button>
               <button
-                onClick={() => startStage(selectedStage)}
+                onClick={() => startLevel(selectedStage, 1)}
                 className="flex-1 py-3 rounded-2xl bg-primary text-primary-foreground font-bold shadow-lg hover:scale-105 active:scale-95 transition"
               >
                 Start ✈️
