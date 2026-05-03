@@ -371,3 +371,9 @@
   100% { transform: scale(1) rotate(0deg);   opacity: 1; }
 }
 .animate-encourage-pop { animation: encourage-pop .55s cubic-bezier(.34,1.56,.64,1) both; }
+
+/* ===== Cinematic intro particles ===== */
+@keyframes cinematic-particle {
+  0%, 100% { opacity: 0; transform: translateY(0) scale(0.5); }
+  50%      { opacity: 1; transform: translateY(-30px) scale(1); }
+}

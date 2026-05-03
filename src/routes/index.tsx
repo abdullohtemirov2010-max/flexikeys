@@ -1,5 +1,5 @@
 import { createFileRoute } from "@tanstack/react-router";
-import React from "react";
+import React, { useState } from "react";
 import { GameProvider, useGame } from "@/context/GameContext";
 import OnboardingScreen from "@/components/screens/OnboardingScreen";
 import LanguageScreen from "@/components/screens/LanguageScreen";
@@ -13,6 +13,7 @@ import LevelCompleteScreen from "@/components/screens/LevelCompleteScreen";
 import StageCompleteScreen from "@/components/screens/StageCompleteScreen";
 import AccountScreen from "@/components/screens/AccountScreen";
 import LeaderboardScreen from "@/components/screens/LeaderboardScreen";
+import CinematicIntro from "@/components/CinematicIntro";
 
 export const Route = createFileRoute("/")({
   head: () => ({
@@ -67,8 +68,11 @@ const AppContent: React.FC = () => {
 };
 
 function Index() {
+  const [showIntro, setShowIntro] = useState(true);
+
   return (
     <GameProvider>
+      {showIntro && <CinematicIntro onComplete={() => setShowIntro(false)} />}
       <AppContent />
     </GameProvider>
   );
