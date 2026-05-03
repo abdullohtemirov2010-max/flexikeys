@@ -9,9 +9,13 @@ const WelcomeBackScreen: React.FC = () => {
   const t = translations[language];
 
   useEffect(() => {
-    if (childName) {
-      speakWelcomeBack(childName);
-    }
+    // Delay voice so it doesn't overlap with cinematic intro
+    const timer = setTimeout(() => {
+      if (childName) {
+        speakWelcomeBack(childName);
+      }
+    }, 1500);
+    return () => clearTimeout(timer);
   }, [childName]);
 
   return (
