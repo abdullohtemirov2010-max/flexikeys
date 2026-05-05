@@ -73,7 +73,7 @@ function Index() {
   return (
     <GameProvider>
       {showIntro && <CinematicIntro onComplete={() => setShowIntro(false)} />}
-      <AppContent />
+      {!showIntro && <AppContent />}
     </GameProvider>
   );
 }
