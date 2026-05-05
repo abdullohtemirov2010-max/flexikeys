@@ -1,18 +1,18 @@
-import React, { useEffect, useState, useRef, useMemo } from 'react';
+import React, { useEffect, useState, useRef, useMemo, useCallback } from 'react';
 import kbFire from '@/assets/intro/kb-fire.mp4.asset.json';
 import kbExplode from '@/assets/intro/kb-explode.mp4.asset.json';
 import kbCrash from '@/assets/intro/kb-crash.mp4.asset.json';
 import kbLogo from '@/assets/intro/kb-logo.mp4.asset.json';
 
-// Each video flows INTO the next — crossfade overlap creates one continuous sequence
+// Shorter durations + fewer effects = smoother on mobile
 const videos = [
-  { src: kbFire.url, duration: 5000 },
-  { src: kbExplode.url, duration: 5000 },
-  { src: kbCrash.url, duration: 4000 },
-  { src: kbLogo.url, duration: 3500 },
+  { src: kbFire.url, duration: 4000 },
+  { src: kbExplode.url, duration: 4000 },
+  { src: kbCrash.url, duration: 3000 },
+  { src: kbLogo.url, duration: 3000 },
 ];
 
-const CROSSFADE_MS = 1200; // overlap between videos for smooth blending
+const CROSSFADE_MS = 800;
 
 interface CinematicIntroProps {
   onComplete: () => void;
@@ -21,87 +21,105 @@ interface CinematicIntroProps {
 const CinematicIntro: React.FC<CinematicIntroProps> = ({ onComplete }) => {
   const [phase, setPhase] = useState(0);
   const [opacity, setOpacity] = useState(1);
-  // Track fractional crossfade per video for smooth blending
-  const [videoOpacities, setVideoOpacities] = useState([1, 0, 0, 0]);
+  const [activeVideo, setActiveVideo] = useState(0);
+  const [nextVideo, setNextVideo] = useState(-1);
+  const [crossfadeProgress, setCrossfadeProgress] = useState(0);
   const videoRefs = useRef<(HTMLVideoElement | null)[]>([]);
+  const rafRef = useRef<number>(0);
 
-  // Precompute stable particle positions
+  const handleSkip = useCallback(() => {
+    setOpacity(0);
+    setTimeout(onComplete, 400);
+  }, [onComplete]);
+
+  // Stable particle data for logo burst (reduced count for mobile)
   const particles = useMemo(() =>
-    Array.from({ length: 20 }).map((_, i) => {
-      const angle = (i / 20) * 360;
+    Array.from({ length: 10 }).map((_, i) => {
+      const angle = (i / 10) * 360;
       const rad = (angle * Math.PI) / 180;
-      const size = 3 + (i % 5);
-      const dist = 80 + (i * 7) % 120;
-      const delay = (i * 0.03);
-      const dur = 1.5 + (i % 3) * 0.5;
-      return { angle, rad, size, dist, delay, dur, color: i % 2 === 0 ? '#FF6B00' : '#2196F3' };
+      const size = 3 + (i % 4);
+      const dist = 60 + (i * 10) % 80;
+      const delay = i * 0.04;
+      const dur = 1.2 + (i % 2) * 0.4;
+      return { rad, size, dist, delay, dur, color: i % 2 === 0 ? '#FF6B00' : '#2196F3' };
     }), []);
 
   useEffect(() => {
     const timers: ReturnType<typeof setTimeout>[] = [];
 
-    // Start all videos preloading, play first immediately
-    videoRefs.current.forEach((v) => v?.load());
-    videoRefs.current[0]?.play().catch(() => {});
+    // Only load and play the first video immediately
+    const firstVideo = videoRefs.current[0];
+    if (firstVideo) {
+      firstVideo.load();
+      firstVideo.play().catch(() => {});
+    }
 
-    // Smooth crossfade: start next video BEFORE current ends
     let elapsed = 0;
     for (let i = 0; i < 3; i++) {
       const fadeStart = elapsed + videos[i].duration - CROSSFADE_MS;
       const idx = i + 1;
 
-      // Begin crossfade — fade out current, fade in next simultaneously
       timers.push(setTimeout(() => {
-        videoRefs.current[idx]?.play().catch(() => {});
-        // Animate crossfade over CROSSFADE_MS
-        const steps = 20;
-        const stepMs = CROSSFADE_MS / steps;
-        for (let s = 0; s <= steps; s++) {
-          const step = s;
-          timers.push(setTimeout(() => {
-            const progress = step / steps;
-            setVideoOpacities(prev => {
-              const next = [...prev];
-              next[idx - 1] = 1 - progress;
-              next[idx] = progress;
-              return next;
-            });
-          }, stepMs * step));
+        // Load and play next video just before needed
+        const nextVid = videoRefs.current[idx];
+        if (nextVid) {
+          nextVid.load();
+          nextVid.play().catch(() => {});
         }
+        setNextVideo(idx);
+        setCrossfadeProgress(0);
+
+        // Use RAF for smooth crossfade instead of many setTimeout
+        const start = performance.now();
+        const animateFade = (now: number) => {
+          const progress = Math.min((now - start) / CROSSFADE_MS, 1);
+          setCrossfadeProgress(progress);
+          if (progress < 1) {
+            rafRef.current = requestAnimationFrame(animateFade);
+          } else {
+            setActiveVideo(idx);
+            setNextVideo(-1);
+            setCrossfadeProgress(0);
+            // Pause previous video to free resources
+            const prevVid = videoRefs.current[idx - 1];
+            if (prevVid) prevVid.pause();
+          }
+        };
+        rafRef.current = requestAnimationFrame(animateFade);
       }, fadeStart));
 
-      // Update phase for other elements
       timers.push(setTimeout(() => setPhase(idx), fadeStart + CROSSFADE_MS / 2));
-
-      elapsed += videos[i].duration - CROSSFADE_MS / 2; // overlap shrinks total time
+      elapsed += videos[i].duration - CROSSFADE_MS / 2;
     }
 
-    // After crash video (phase 3), the crash "breaks" into logo reveal
-    const crashEnd = elapsed + videos[3].duration - 500;
-
-    // Shake effect during crash
+    // Shake during crash
     timers.push(setTimeout(() => {
       const container = document.getElementById('intro-container');
       if (container) {
         container.style.animation = 'intro-shake 0.15s ease-in-out 3';
         setTimeout(() => { container.style.animation = ''; }, 500);
       }
-    }, elapsed + 1000));
+    }, elapsed + 800));
 
-    // Logo bursts out from the crash
+    const crashEnd = elapsed + videos[3].duration - 500;
+
+    // Logo reveal
     timers.push(setTimeout(() => {
       setPhase(4);
-      // Fade out all videos
-      setVideoOpacities([0, 0, 0, 0]);
+      // Pause all videos
+      videoRefs.current.forEach(v => v?.pause());
     }, crashEnd));
 
     // Final fade out
     timers.push(setTimeout(() => {
       setOpacity(0);
       setTimeout(onComplete, 800);
-    }, crashEnd + 3000));
+    }, crashEnd + 2500));
 
-    return () => timers.forEach(clearTimeout);
+    return () => {
+      timers.forEach(clearTimeout);
+      cancelAnimationFrame(rafRef.current);
+    };
   }, [onComplete]);
 
   return (
@@ -114,71 +132,54 @@ const CinematicIntro: React.FC<CinematicIntroProps> = ({ onComplete }) => {
         background: '#000',
       }}
     >
-      {/* Video layers — simultaneous with opacity crossfade for continuous flow */}
-      {videos.map((vid, i) => (
-        <div
-          key={i}
-          className="absolute inset-0 flex items-center justify-center"
-          style={{
-            opacity: videoOpacities[i],
-            transition: 'none', // controlled via JS for smooth crossfade
-            zIndex: i + 1,
-          }}
-        >
-          <video
-            ref={(el) => { videoRefs.current[i] = el; }}
-            src={vid.src}
-            muted
-            playsInline
-            preload="auto"
-            className="w-full h-full object-cover"
-            style={{
-              filter: 'brightness(1.1) contrast(1.05)',
-            }}
-          />
-        </div>
-      ))}
+      {/* Only render active + next video, not all 4 */}
+      {videos.map((vid, i) => {
+        const isActive = i === activeVideo;
+        const isNext = i === nextVideo;
+        if (!isActive && !isNext && phase < 4) return null;
+        if (phase >= 4) return null;
 
-      {/* Fire glow during phase 0 */}
-      <div
-        className="absolute inset-0 z-10 pointer-events-none"
-        style={{
-          background: phase === 0
-            ? 'radial-gradient(ellipse at 50% 60%, rgba(255,100,0,0.25) 0%, transparent 60%)'
-            : phase === 1
-            ? 'radial-gradient(ellipse at 50% 50%, rgba(255,200,0,0.15) 0%, transparent 50%)'
-            : phase === 2
-            ? 'radial-gradient(ellipse at 50% 50%, rgba(100,100,255,0.1) 0%, transparent 60%)'
-            : 'none',
-          transition: 'background 1.5s ease',
-          mixBlendMode: 'screen',
-        }}
-      />
+        let vidOpacity = 0;
+        if (isActive && isNext) vidOpacity = 1;
+        else if (isActive) vidOpacity = nextVideo >= 0 ? 1 - crossfadeProgress : 1;
+        else if (isNext) vidOpacity = crossfadeProgress;
 
-      {/* Breaking debris particles during crash phase */}
-      {phase >= 2 && phase < 4 && Array.from({ length: 12 }).map((_, i) => {
-        const x = (i - 6) * 60;
-        const y = -200 - (i % 3) * 100;
         return (
           <div
-            key={`debris-${i}`}
-            className="absolute z-15"
-            style={{
-              left: '50%',
-              top: '50%',
-              width: `${4 + (i % 4) * 2}px`,
-              height: `${4 + (i % 4) * 2}px`,
-              background: i % 2 === 0 ? '#FF6B00' : '#aaa',
-              borderRadius: i % 3 === 0 ? '50%' : '2px',
-              transform: `translate(${x}px, ${y}px) rotate(${i * 45}deg)`,
-              animation: `cinematic-particle 2s ease-out ${i * 0.1}s forwards`,
-              opacity: 0.8,
-            }}
-          />
+            key={i}
+            className="absolute inset-0 flex items-center justify-center"
+            style={{ opacity: vidOpacity, zIndex: i + 1 }}
+          >
+            <video
+              ref={(el) => { videoRefs.current[i] = el; }}
+              src={vid.src}
+              muted
+              playsInline
+              preload="none"
+              className="w-full h-full object-cover"
+              style={{ willChange: 'opacity' }}
+            />
+          </div>
         );
       })}
 
-      {/* Logo reveal — bursts out after crash breaks everything */}
+      {/* Subtle glow overlay — simplified for mobile */}
+      {phase < 4 && (
+        <div
+          className="absolute inset-0 z-10 pointer-events-none"
+          style={{
+            background: phase === 0
+              ? 'radial-gradient(ellipse at 50% 60%, rgba(255,100,0,0.2) 0%, transparent 60%)'
+              : phase === 2
+              ? 'radial-gradient(ellipse at 50% 50%, rgba(100,100,255,0.1) 0%, transparent 60%)'
+              : 'none',
+            transition: 'background 1s ease',
+            mixBlendMode: 'screen',
+          }}
+        />
+      )}
+
+      {/* Logo reveal */}
       <div
         className="absolute inset-0 z-20 flex flex-col items-center justify-center"
         style={{
@@ -186,78 +187,72 @@ const CinematicIntro: React.FC<CinematicIntroProps> = ({ onComplete }) => {
           transition: 'opacity 0.5s cubic-bezier(0.4, 0, 0.2, 1)',
         }}
       >
-        <div
-          className="absolute inset-0"
-          style={{
-            background: 'radial-gradient(ellipse at center, rgba(0,0,0,0.85) 0%, rgba(0,0,0,0.97) 100%)',
-          }}
-        />
+        {phase >= 4 && (
+          <>
+            <div
+              className="absolute inset-0"
+              style={{
+                background: 'radial-gradient(ellipse at center, rgba(0,0,0,0.85) 0%, rgba(0,0,0,0.97) 100%)',
+              }}
+            />
+            <div className="relative z-10 text-center">
+              <div
+                className="text-6xl md:text-9xl font-black tracking-tighter"
+                style={{
+                  background: 'linear-gradient(135deg, #FF6B00 0%, #FF9800 30%, #2196F3 60%, #1976D2 100%)',
+                  WebkitBackgroundClip: 'text',
+                  WebkitTextFillColor: 'transparent',
+                  transform: 'scale(1)',
+                  animation: 'logo-pop 0.6s cubic-bezier(0.34, 1.56, 0.64, 1)',
+                  filter: 'drop-shadow(0 0 40px rgba(255,107,0,0.5))',
+                }}
+              >
+                FLEXIKEYS
+              </div>
+              <p
+                className="mt-4 text-lg md:text-xl font-medium tracking-wide"
+                style={{
+                  color: '#aaa',
+                  animation: 'fade-up 0.8s ease-out 0.5s both',
+                }}
+              >
+                Small steps. Big progress.
+              </p>
+              <div
+                className="mx-auto mt-6 h-[2px] rounded-full"
+                style={{
+                  background: 'linear-gradient(90deg, transparent, #FF6B00, #2196F3, transparent)',
+                  animation: 'line-expand 1s ease-out 0.8s both',
+                }}
+              />
+            </div>
 
-        <div className="relative z-10 text-center">
-          <div
-            className="text-7xl md:text-9xl font-black tracking-tighter"
-            style={{
-              background: 'linear-gradient(135deg, #FF6B00 0%, #FF9800 30%, #2196F3 60%, #1976D2 100%)',
-              WebkitBackgroundClip: 'text',
-              WebkitTextFillColor: 'transparent',
-              transform: phase >= 4 ? 'scale(1) translateY(0)' : 'scale(3) translateY(30px)',
-              opacity: phase >= 4 ? 1 : 0,
-              transition: 'transform 0.6s cubic-bezier(0.34, 1.56, 0.64, 1), opacity 0.3s ease-out',
-              filter: 'drop-shadow(0 0 40px rgba(255,107,0,0.5)) drop-shadow(0 0 80px rgba(33,150,243,0.3))',
-            }}
-          >
-            FLEXIKEYS
-          </div>
-
-          <p
-            className="mt-4 text-lg md:text-xl font-medium tracking-wide"
-            style={{
-              color: '#aaa',
-              opacity: phase >= 4 ? 1 : 0,
-              transform: phase >= 4 ? 'translateY(0)' : 'translateY(20px)',
-              transition: 'all 0.8s ease-out 0.5s',
-            }}
-          >
-            Small steps. Big progress.
-          </p>
-
-          <div
-            className="mx-auto mt-6 h-[2px] rounded-full"
-            style={{
-              background: 'linear-gradient(90deg, transparent, #FF6B00, #2196F3, transparent)',
-              width: phase >= 4 ? '240px' : '0px',
-              transition: 'width 1s ease-out 0.8s',
-            }}
-          />
-        </div>
-
-        {/* Burst particles */}
-        {phase >= 4 && particles.map((p, i) => (
-          <span
-            key={i}
-            className="absolute rounded-full"
-            style={{
-              width: `${p.size}px`,
-              height: `${p.size}px`,
-              left: '50%',
-              top: '50%',
-              background: p.color,
-              transform: `translate(-50%, -50%) translate(${Math.cos(p.rad) * p.dist}px, ${Math.sin(p.rad) * p.dist}px)`,
-              opacity: 0,
-              animation: `cinematic-particle ${p.dur}s ease-out ${p.delay}s forwards`,
-              zIndex: 25,
-            }}
-          />
-        ))}
+            {/* Burst particles — reduced count */}
+            {particles.map((p, i) => (
+              <span
+                key={i}
+                className="absolute rounded-full"
+                style={{
+                  width: `${p.size}px`,
+                  height: `${p.size}px`,
+                  left: '50%',
+                  top: '50%',
+                  background: p.color,
+                  transform: `translate(-50%, -50%) translate(${Math.cos(p.rad) * p.dist}px, ${Math.sin(p.rad) * p.dist}px)`,
+                  opacity: 0,
+                  animation: `cinematic-particle ${p.dur}s ease-out ${p.delay}s forwards`,
+                  zIndex: 25,
+                }}
+              />
+            ))}
+          </>
+        )}
       </div>
 
-      {/* ===== BRAND STAMP — made by: lojon ===== */}
+      {/* Brand stamp */}
       <div
         className="absolute bottom-5 right-5 z-[50] flex items-center gap-1.5"
-        style={{
-          opacity: phase >= 0 ? 0.85 : 0,
-          transition: 'opacity 0.8s ease-out',
-        }}
+        style={{ opacity: 0.85 }}
       >
         <span className="text-sm font-medium tracking-widest uppercase" style={{ color: '#777' }}>
           made by:
@@ -276,7 +271,7 @@ const CinematicIntro: React.FC<CinematicIntroProps> = ({ onComplete }) => {
 
       {/* Skip */}
       <button
-        onClick={() => { setOpacity(0); setTimeout(onComplete, 400); }}
+        onClick={handleSkip}
         className="absolute top-6 right-6 z-[50] px-4 py-2 rounded-full text-xs font-medium tracking-wide uppercase"
         style={{
           background: 'rgba(255,255,255,0.1)',
