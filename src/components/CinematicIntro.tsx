@@ -1,18 +1,21 @@
-import React, { useEffect, useState, useRef, useMemo, useCallback } from 'react';
-import kbFire from '@/assets/intro/kb-fire.mp4.asset.json';
-import kbExplode from '@/assets/intro/kb-explode.mp4.asset.json';
-import kbCrash from '@/assets/intro/kb-crash.mp4.asset.json';
-import kbLogo from '@/assets/intro/kb-logo.mp4.asset.json';
+import React, { useEffect, useState, useCallback } from 'react';
+import kb1 from '@/assets/intro/kb-1.png';
+import kb2 from '@/assets/intro/kb-2.png';
+import kb3 from '@/assets/intro/kb-3.png';
+import kb4 from '@/assets/intro/kb-4.png';
 
-// Shorter durations + fewer effects = smoother on mobile
-const videos = [
-  { src: kbFire.url, duration: 4000 },
-  { src: kbExplode.url, duration: 4000 },
-  { src: kbCrash.url, duration: 3000 },
-  { src: kbLogo.url, duration: 3000 },
-];
-
-const CROSSFADE_MS = 800;
+/**
+ * Lightweight cinematic intro — pure CSS animations over static PNGs.
+ * No video files = zero loading lag.
+ *
+ * Timeline (total ~8s):
+ *   0–2s     Phase 0: kb-1 fades in with fire glow + slow zoom
+ *   2–4s     Phase 1: crossfade to kb-2, keys lifting out
+ *   4–5.5s   Phase 2: crossfade to kb-3, crash/break with screen shake
+ *   5.5–6s   Phase 3: crossfade to kb-4, aftermath
+ *   6–8s     Phase 4: logo reveal bursts in
+ *   8s+      fade out → onComplete
+ */
 
 interface CinematicIntroProps {
   onComplete: () => void;
@@ -20,171 +23,131 @@ interface CinematicIntroProps {
 
 const CinematicIntro: React.FC<CinematicIntroProps> = ({ onComplete }) => {
   const [phase, setPhase] = useState(0);
-  const [opacity, setOpacity] = useState(1);
-  const [activeVideo, setActiveVideo] = useState(0);
-  const [nextVideo, setNextVideo] = useState(-1);
-  const [crossfadeProgress, setCrossfadeProgress] = useState(0);
-  const videoRefs = useRef<(HTMLVideoElement | null)[]>([]);
-  const rafRef = useRef<number>(0);
+  const [fading, setFading] = useState(false);
 
   const handleSkip = useCallback(() => {
-    setOpacity(0);
-    setTimeout(onComplete, 400);
+    setFading(true);
+    setTimeout(onComplete, 600);
   }, [onComplete]);
-
-  // Stable particle data for logo burst (reduced count for mobile)
-  const particles = useMemo(() =>
-    Array.from({ length: 10 }).map((_, i) => {
-      const angle = (i / 10) * 360;
-      const rad = (angle * Math.PI) / 180;
-      const size = 3 + (i % 4);
-      const dist = 60 + (i * 10) % 80;
-      const delay = i * 0.04;
-      const dur = 1.2 + (i % 2) * 0.4;
-      return { rad, size, dist, delay, dur, color: i % 2 === 0 ? '#FF6B00' : '#2196F3' };
-    }), []);
 
   useEffect(() => {
-    const timers: ReturnType<typeof setTimeout>[] = [];
-
-    // Only load and play the first video immediately
-    const firstVideo = videoRefs.current[0];
-    if (firstVideo) {
-      firstVideo.load();
-      firstVideo.play().catch(() => {});
-    }
-
-    let elapsed = 0;
-    for (let i = 0; i < 3; i++) {
-      const fadeStart = elapsed + videos[i].duration - CROSSFADE_MS;
-      const idx = i + 1;
-
-      timers.push(setTimeout(() => {
-        // Load and play next video just before needed
-        const nextVid = videoRefs.current[idx];
-        if (nextVid) {
-          nextVid.load();
-          nextVid.play().catch(() => {});
+    const timers = [
+      setTimeout(() => setPhase(1), 2000),
+      setTimeout(() => setPhase(2), 4000),
+      setTimeout(() => {
+        // Shake the container during crash
+        const el = document.getElementById('intro-container');
+        if (el) {
+          el.style.animation = 'intro-shake 0.12s ease-in-out 4';
+          setTimeout(() => { el.style.animation = ''; }, 500);
         }
-        setNextVideo(idx);
-        setCrossfadeProgress(0);
-
-        // Use RAF for smooth crossfade instead of many setTimeout
-        const start = performance.now();
-        const animateFade = (now: number) => {
-          const progress = Math.min((now - start) / CROSSFADE_MS, 1);
-          setCrossfadeProgress(progress);
-          if (progress < 1) {
-            rafRef.current = requestAnimationFrame(animateFade);
-          } else {
-            setActiveVideo(idx);
-            setNextVideo(-1);
-            setCrossfadeProgress(0);
-            // Pause previous video to free resources
-            const prevVid = videoRefs.current[idx - 1];
-            if (prevVid) prevVid.pause();
-          }
-        };
-        rafRef.current = requestAnimationFrame(animateFade);
-      }, fadeStart));
-
-      timers.push(setTimeout(() => setPhase(idx), fadeStart + CROSSFADE_MS / 2));
-      elapsed += videos[i].duration - CROSSFADE_MS / 2;
-    }
-
-    // Shake during crash
-    timers.push(setTimeout(() => {
-      const container = document.getElementById('intro-container');
-      if (container) {
-        container.style.animation = 'intro-shake 0.15s ease-in-out 3';
-        setTimeout(() => { container.style.animation = ''; }, 500);
-      }
-    }, elapsed + 800));
-
-    const crashEnd = elapsed + videos[3].duration - 500;
-
-    // Logo reveal
-    timers.push(setTimeout(() => {
-      setPhase(4);
-      // Pause all videos
-      videoRefs.current.forEach(v => v?.pause());
-    }, crashEnd));
-
-    // Final fade out
-    timers.push(setTimeout(() => {
-      setOpacity(0);
-      setTimeout(onComplete, 800);
-    }, crashEnd + 2500));
-
-    return () => {
-      timers.forEach(clearTimeout);
-      cancelAnimationFrame(rafRef.current);
-    };
+      }, 4200),
+      setTimeout(() => setPhase(3), 5500),
+      setTimeout(() => setPhase(4), 6000),
+      setTimeout(() => {
+        setFading(true);
+        setTimeout(onComplete, 700);
+      }, 8500),
+    ];
+    return () => timers.forEach(clearTimeout);
   }, [onComplete]);
+
+  const images = [kb1, kb2, kb3, kb4];
+
+  // Which image index is "active" per phase
+  const activeImg = phase >= 4 ? -1 : Math.min(phase, 3);
 
   return (
     <div
       id="intro-container"
       className="fixed inset-0 z-[200] overflow-hidden"
       style={{
-        opacity,
-        transition: 'opacity 0.8s ease-out',
+        opacity: fading ? 0 : 1,
+        transition: 'opacity 0.7s ease-out',
         background: '#000',
       }}
     >
-      {/* Only render active + next video, not all 4 */}
-      {videos.map((vid, i) => {
-        const isActive = i === activeVideo;
-        const isNext = i === nextVideo;
-        if (!isActive && !isNext && phase < 4) return null;
-        if (phase >= 4) return null;
-
-        let vidOpacity = 0;
-        if (isActive && isNext) vidOpacity = 1;
-        else if (isActive) vidOpacity = nextVideo >= 0 ? 1 - crossfadeProgress : 1;
-        else if (isNext) vidOpacity = crossfadeProgress;
+      {/* Image layers with CSS crossfade */}
+      {images.map((src, i) => {
+        const isActive = i === activeImg;
+        // Compute a cinematic transform per phase
+        let transform = 'scale(1)';
+        if (i === 0 && phase === 0) transform = 'scale(1.08)';
+        if (i === 1 && phase === 1) transform = 'scale(1.05) translateY(-2%)';
+        if (i === 2 && phase === 2) transform = 'scale(1.12) rotate(0.5deg)';
+        if (i === 3 && phase === 3) transform = 'scale(1.03)';
 
         return (
           <div
             key={i}
-            className="absolute inset-0 flex items-center justify-center"
-            style={{ opacity: vidOpacity, zIndex: i + 1 }}
+            className="absolute inset-0"
+            style={{
+              opacity: isActive ? 1 : 0,
+              transition: 'opacity 0.8s ease-in-out',
+              zIndex: i + 1,
+            }}
           >
-            <video
-              ref={(el) => { videoRefs.current[i] = el; }}
-              src={vid.src}
-              muted
-              playsInline
-              preload="none"
+            <img
+              src={src}
+              alt=""
               className="w-full h-full object-cover"
-              style={{ willChange: 'opacity' }}
+              style={{
+                transform,
+                transition: 'transform 2s ease-out',
+                willChange: 'transform',
+              }}
+              draggable={false}
             />
           </div>
         );
       })}
 
-      {/* Subtle glow overlay — simplified for mobile */}
-      {phase < 4 && (
-        <div
-          className="absolute inset-0 z-10 pointer-events-none"
-          style={{
-            background: phase === 0
-              ? 'radial-gradient(ellipse at 50% 60%, rgba(255,100,0,0.2) 0%, transparent 60%)'
+      {/* Fire glow overlay for phase 0 */}
+      <div
+        className="absolute inset-0 pointer-events-none"
+        style={{
+          zIndex: 10,
+          background:
+            phase === 0
+              ? 'radial-gradient(ellipse at 50% 60%, rgba(255,80,0,0.3) 0%, transparent 65%)'
+              : phase === 1
+              ? 'radial-gradient(ellipse at 50% 40%, rgba(255,180,0,0.15) 0%, transparent 55%)'
               : phase === 2
-              ? 'radial-gradient(ellipse at 50% 50%, rgba(100,100,255,0.1) 0%, transparent 60%)'
+              ? 'radial-gradient(ellipse at 50% 50%, rgba(200,200,255,0.12) 0%, transparent 60%)'
               : 'none',
-            transition: 'background 1s ease',
-            mixBlendMode: 'screen',
-          }}
-        />
+          transition: 'background 1.2s ease',
+          mixBlendMode: 'screen',
+        }}
+      />
+
+      {/* Flying debris particles during crash phases */}
+      {(phase === 2 || phase === 3) && (
+        <div className="absolute inset-0 pointer-events-none" style={{ zIndex: 12 }}>
+          {Array.from({ length: 8 }).map((_, i) => (
+            <div
+              key={`d-${i}`}
+              className="absolute"
+              style={{
+                left: `${20 + i * 8}%`,
+                top: `${30 + (i % 3) * 15}%`,
+                width: `${3 + (i % 3) * 2}px`,
+                height: `${3 + (i % 3) * 2}px`,
+                background: i % 2 === 0 ? '#FF6B00' : '#ccc',
+                borderRadius: i % 3 === 0 ? '50%' : '2px',
+                animation: `cinematic-particle 1.5s ease-out ${i * 0.08}s forwards`,
+              }}
+            />
+          ))}
+        </div>
       )}
 
-      {/* Logo reveal */}
+      {/* ========== LOGO REVEAL ========== */}
       <div
-        className="absolute inset-0 z-20 flex flex-col items-center justify-center"
+        className="absolute inset-0 flex flex-col items-center justify-center"
         style={{
+          zIndex: 20,
           opacity: phase >= 4 ? 1 : 0,
-          transition: 'opacity 0.5s cubic-bezier(0.4, 0, 0.2, 1)',
+          transition: 'opacity 0.5s ease',
         }}
       >
         {phase >= 4 && (
@@ -192,73 +155,76 @@ const CinematicIntro: React.FC<CinematicIntroProps> = ({ onComplete }) => {
             <div
               className="absolute inset-0"
               style={{
-                background: 'radial-gradient(ellipse at center, rgba(0,0,0,0.85) 0%, rgba(0,0,0,0.97) 100%)',
+                background: 'radial-gradient(ellipse at center, rgba(0,0,0,0.8) 0%, rgba(0,0,0,0.97) 100%)',
               }}
             />
-            <div className="relative z-10 text-center">
+            <div className="relative z-10 text-center px-4">
               <div
-                className="text-6xl md:text-9xl font-black tracking-tighter"
+                className="text-5xl sm:text-7xl md:text-9xl font-black tracking-tighter"
                 style={{
                   background: 'linear-gradient(135deg, #FF6B00 0%, #FF9800 30%, #2196F3 60%, #1976D2 100%)',
                   WebkitBackgroundClip: 'text',
                   WebkitTextFillColor: 'transparent',
-                  transform: 'scale(1)',
-                  animation: 'logo-pop 0.6s cubic-bezier(0.34, 1.56, 0.64, 1)',
-                  filter: 'drop-shadow(0 0 40px rgba(255,107,0,0.5))',
+                  animation: 'logo-pop 0.6s cubic-bezier(0.34,1.56,0.64,1)',
+                  filter: 'drop-shadow(0 0 30px rgba(255,107,0,0.4))',
                 }}
               >
                 FLEXIKEYS
               </div>
               <p
-                className="mt-4 text-lg md:text-xl font-medium tracking-wide"
+                className="mt-3 text-base sm:text-lg md:text-xl font-medium tracking-wide"
                 style={{
                   color: '#aaa',
-                  animation: 'fade-up 0.8s ease-out 0.5s both',
+                  animation: 'fade-up 0.8s ease-out 0.4s both',
                 }}
               >
                 Small steps. Big progress.
               </p>
               <div
-                className="mx-auto mt-6 h-[2px] rounded-full"
+                className="mx-auto mt-5 h-[2px] rounded-full"
                 style={{
                   background: 'linear-gradient(90deg, transparent, #FF6B00, #2196F3, transparent)',
-                  animation: 'line-expand 1s ease-out 0.8s both',
+                  animation: 'line-expand 1s ease-out 0.7s both',
                 }}
               />
             </div>
 
-            {/* Burst particles — reduced count */}
-            {particles.map((p, i) => (
-              <span
-                key={i}
-                className="absolute rounded-full"
-                style={{
-                  width: `${p.size}px`,
-                  height: `${p.size}px`,
-                  left: '50%',
-                  top: '50%',
-                  background: p.color,
-                  transform: `translate(-50%, -50%) translate(${Math.cos(p.rad) * p.dist}px, ${Math.sin(p.rad) * p.dist}px)`,
-                  opacity: 0,
-                  animation: `cinematic-particle ${p.dur}s ease-out ${p.delay}s forwards`,
-                  zIndex: 25,
-                }}
-              />
-            ))}
+            {/* Burst particles */}
+            {Array.from({ length: 10 }).map((_, i) => {
+              const angle = (i / 10) * 2 * Math.PI;
+              const dist = 50 + (i * 9) % 70;
+              return (
+                <span
+                  key={i}
+                  className="absolute rounded-full"
+                  style={{
+                    width: `${3 + (i % 4)}px`,
+                    height: `${3 + (i % 4)}px`,
+                    left: '50%',
+                    top: '50%',
+                    background: i % 2 === 0 ? '#FF6B00' : '#2196F3',
+                    transform: `translate(-50%,-50%) translate(${Math.cos(angle) * dist}px,${Math.sin(angle) * dist}px)`,
+                    opacity: 0,
+                    animation: `cinematic-particle 1.2s ease-out ${i * 0.04}s forwards`,
+                    zIndex: 25,
+                  }}
+                />
+              );
+            })}
           </>
         )}
       </div>
 
       {/* Brand stamp */}
       <div
-        className="absolute bottom-5 right-5 z-[50] flex items-center gap-1.5"
-        style={{ opacity: 0.85 }}
+        className="absolute bottom-4 right-4 z-[50] flex items-center gap-1.5"
+        style={{ opacity: 0.8 }}
       >
-        <span className="text-sm font-medium tracking-widest uppercase" style={{ color: '#777' }}>
+        <span className="text-xs sm:text-sm font-medium tracking-widest uppercase" style={{ color: '#666' }}>
           made by:
         </span>
         <span
-          className="text-sm font-black tracking-wider uppercase"
+          className="text-xs sm:text-sm font-black tracking-wider uppercase"
           style={{
             background: 'linear-gradient(135deg, #FF6B00, #2196F3)',
             WebkitBackgroundClip: 'text',
@@ -269,10 +235,10 @@ const CinematicIntro: React.FC<CinematicIntroProps> = ({ onComplete }) => {
         </span>
       </div>
 
-      {/* Skip */}
+      {/* Skip button */}
       <button
         onClick={handleSkip}
-        className="absolute top-6 right-6 z-[50] px-4 py-2 rounded-full text-xs font-medium tracking-wide uppercase"
+        className="absolute top-5 right-5 z-[50] px-4 py-2 rounded-full text-xs font-medium tracking-wide uppercase"
         style={{
           background: 'rgba(255,255,255,0.1)',
           color: '#888',
