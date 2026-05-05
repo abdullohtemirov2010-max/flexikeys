@@ -71,9 +71,9 @@ function Index() {
   const [showIntro, setShowIntro] = useState(true);
 
   return (
-    <GameProvider introComplete={!showIntro}>
+    <GameProvider>
       {showIntro && <CinematicIntro onComplete={() => setShowIntro(false)} />}
-      <AppContent />
+      {!showIntro && <AppContent />}
     </GameProvider>
   );
 }
