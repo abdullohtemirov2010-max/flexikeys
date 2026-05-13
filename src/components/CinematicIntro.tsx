@@ -1,230 +1,129 @@
 import React, { useEffect, useState, useCallback } from 'react';
-import kb1 from '@/assets/intro/kb-1.png';
-import kb2 from '@/assets/intro/kb-2.png';
-import kb3 from '@/assets/intro/kb-3.png';
-import kb4 from '@/assets/intro/kb-4.png';
 
 /**
- * Lightweight cinematic intro — pure CSS animations over static PNGs.
- * No video files = zero loading lag.
- *
- * Timeline (total ~8s):
- *   0–2s     Phase 0: kb-1 fades in with fire glow + slow zoom
- *   2–4s     Phase 1: crossfade to kb-2, keys lifting out
- *   4–5.5s   Phase 2: crossfade to kb-3, crash/break with screen shake
- *   5.5–6s   Phase 3: crossfade to kb-4, aftermath
- *   6–8s     Phase 4: logo reveal bursts in
- *   8s+      fade out → onComplete
+ * Pure-CSS cinematic intro. No images, no video — zero loading lag.
+ * Keys fly in, snap together, FLEXIKEYS logo reveals, fade out (~3.2s).
  */
 
 interface CinematicIntroProps {
   onComplete: () => void;
 }
 
+const LETTERS = ['F', 'L', 'E', 'X', 'I', 'K', 'E', 'Y', 'S'];
+
 const CinematicIntro: React.FC<CinematicIntroProps> = ({ onComplete }) => {
-  const [phase, setPhase] = useState(0);
+  const [phase, setPhase] = useState<0 | 1 | 2 | 3>(0); // 0 keys flying, 1 snapped, 2 logo, 3 fade
   const [fading, setFading] = useState(false);
 
-  const handleSkip = useCallback(() => {
+  const finish = useCallback(() => {
     setFading(true);
-    setTimeout(onComplete, 600);
+    setTimeout(onComplete, 500);
   }, [onComplete]);
 
   useEffect(() => {
-    const timers = [
-      setTimeout(() => setPhase(1), 2000),
-      setTimeout(() => setPhase(2), 4000),
-      setTimeout(() => {
-        // Shake the container during crash
-        const el = document.getElementById('intro-container');
-        if (el) {
-          el.style.animation = 'intro-shake 0.12s ease-in-out 4';
-          setTimeout(() => { el.style.animation = ''; }, 500);
-        }
-      }, 4200),
-      setTimeout(() => setPhase(3), 5500),
-      setTimeout(() => setPhase(4), 6000),
-      setTimeout(() => {
-        setFading(true);
-        setTimeout(onComplete, 700);
-      }, 8500),
-    ];
-    return () => timers.forEach(clearTimeout);
-  }, [onComplete]);
-
-  const images = [kb1, kb2, kb3, kb4];
-
-  // Which image index is "active" per phase
-  const activeImg = phase >= 4 ? -1 : Math.min(phase, 3);
+    const t1 = setTimeout(() => setPhase(1), 1400); // keys snapped
+    const t2 = setTimeout(() => setPhase(2), 1900); // logo gradient + tagline
+    const t3 = setTimeout(() => finish(), 3200);
+    return () => { clearTimeout(t1); clearTimeout(t2); clearTimeout(t3); };
+  }, [finish]);
 
   return (
     <div
-      id="intro-container"
-      className="fixed inset-0 z-[200] overflow-hidden"
+      className="fixed inset-0 z-[200] overflow-hidden flex flex-col items-center justify-center"
       style={{
+        background: 'radial-gradient(ellipse at center, #0b1220 0%, #000 80%)',
         opacity: fading ? 0 : 1,
-        transition: 'opacity 0.7s ease-out',
-        background: '#000',
+        transition: 'opacity 0.5s ease-out',
       }}
     >
-      {/* Image layers with CSS crossfade */}
-      {images.map((src, i) => {
-        const isActive = i === activeImg;
-        // Compute a cinematic transform per phase
-        let transform = 'scale(1)';
-        if (i === 0 && phase === 0) transform = 'scale(1.08)';
-        if (i === 1 && phase === 1) transform = 'scale(1.05) translateY(-2%)';
-        if (i === 2 && phase === 2) transform = 'scale(1.12) rotate(0.5deg)';
-        if (i === 3 && phase === 3) transform = 'scale(1.03)';
-
-        return (
-          <div
-            key={i}
-            className="absolute inset-0"
-            style={{
-              opacity: isActive ? 1 : 0,
-              transition: 'opacity 0.8s ease-in-out',
-              zIndex: i + 1,
-            }}
-          >
-            <img
-              src={src}
-              alt=""
-              className="w-full h-full object-cover"
-              style={{
-                transform,
-                transition: 'transform 2s ease-out',
-                willChange: 'transform',
-              }}
-              draggable={false}
-            />
-          </div>
-        );
-      })}
-
-      {/* Fire glow overlay for phase 0 */}
+      {/* Soft glow */}
       <div
         className="absolute inset-0 pointer-events-none"
         style={{
-          zIndex: 10,
           background:
-            phase === 0
-              ? 'radial-gradient(ellipse at 50% 60%, rgba(255,80,0,0.3) 0%, transparent 65%)'
-              : phase === 1
-              ? 'radial-gradient(ellipse at 50% 40%, rgba(255,180,0,0.15) 0%, transparent 55%)'
-              : phase === 2
-              ? 'radial-gradient(ellipse at 50% 50%, rgba(200,200,255,0.12) 0%, transparent 60%)'
-              : 'none',
-          transition: 'background 1.2s ease',
-          mixBlendMode: 'screen',
+            'radial-gradient(circle at 50% 50%, rgba(33,150,243,0.18) 0%, transparent 55%), radial-gradient(circle at 50% 50%, rgba(255,107,0,0.10) 0%, transparent 70%)',
+          opacity: phase >= 1 ? 1 : 0.4,
+          transition: 'opacity 0.8s ease',
         }}
       />
 
-      {/* Flying debris particles during crash phases */}
-      {(phase === 2 || phase === 3) && (
-        <div className="absolute inset-0 pointer-events-none" style={{ zIndex: 12 }}>
-          {Array.from({ length: 8 }).map((_, i) => (
-            <div
-              key={`d-${i}`}
-              className="absolute"
-              style={{
-                left: `${20 + i * 8}%`,
-                top: `${30 + (i % 3) * 15}%`,
-                width: `${3 + (i % 3) * 2}px`,
-                height: `${3 + (i % 3) * 2}px`,
-                background: i % 2 === 0 ? '#FF6B00' : '#ccc',
-                borderRadius: i % 3 === 0 ? '50%' : '2px',
-                animation: `cinematic-particle 1.5s ease-out ${i * 0.08}s forwards`,
-              }}
-            />
-          ))}
-        </div>
-      )}
+      {/* Keys */}
+      <div className="relative flex items-center justify-center gap-1 sm:gap-2 md:gap-3" style={{ perspective: '800px' }}>
+        {LETTERS.map((ch, i) => {
+          const offset = i - (LETTERS.length - 1) / 2;
+          // Random fly-in start position
+          const startX = (i % 2 === 0 ? -1 : 1) * (200 + i * 18);
+          const startY = (i % 3 === 0 ? -1 : 1) * (140 + (i % 4) * 22);
+          const startRot = (i % 2 === 0 ? -1 : 1) * (45 + i * 6);
 
-      {/* ========== LOGO REVEAL ========== */}
-      <div
-        className="absolute inset-0 flex flex-col items-center justify-center"
-        style={{
-          zIndex: 20,
-          opacity: phase >= 4 ? 1 : 0,
-          transition: 'opacity 0.5s ease',
-        }}
-      >
-        {phase >= 4 && (
-          <>
+          const flying = phase === 0;
+          const logoMode = phase >= 2;
+
+          return (
             <div
-              className="absolute inset-0"
+              key={i}
+              className="font-black select-none"
               style={{
-                background: 'radial-gradient(ellipse at center, rgba(0,0,0,0.8) 0%, rgba(0,0,0,0.97) 100%)',
+                fontSize: 'clamp(2.2rem, 9vw, 6rem)',
+                width: '1.05em',
+                height: '1.25em',
+                lineHeight: '1.25em',
+                textAlign: 'center',
+                color: logoMode ? 'transparent' : '#fff',
+                background: logoMode
+                  ? 'linear-gradient(135deg, #FF6B00 0%, #FF9800 35%, #2196F3 70%, #1976D2 100%)'
+                  : 'linear-gradient(180deg, #2a3447 0%, #161e2d 100%)',
+                WebkitBackgroundClip: logoMode ? 'text' : 'border-box',
+                WebkitTextFillColor: logoMode ? 'transparent' : '#fff',
+                borderRadius: logoMode ? 0 : '14%',
+                boxShadow: logoMode
+                  ? 'none'
+                  : 'inset 0 -4px 0 rgba(0,0,0,0.4), inset 0 2px 0 rgba(255,255,255,0.08), 0 6px 14px rgba(0,0,0,0.6)',
+                transform: flying
+                  ? `translate3d(${startX}px, ${startY}px, 0) rotate(${startRot}deg) scale(0.4)`
+                  : `translate3d(0,0,0) rotate(0deg) scale(${logoMode ? 1.05 : 1})`,
+                opacity: flying ? 0 : 1,
+                transition: `transform 0.8s cubic-bezier(.34,1.56,.64,1) ${i * 60}ms, opacity 0.4s ease ${i * 60}ms, color 0.4s ease, background 0.6s ease, box-shadow 0.6s ease, border-radius 0.6s ease`,
+                filter: logoMode ? 'drop-shadow(0 0 18px rgba(255,140,0,0.45))' : 'none',
+                willChange: 'transform, opacity',
               }}
-            />
-            <div className="relative z-10 text-center px-4">
-              <div
-                className="text-5xl sm:text-7xl md:text-9xl font-black tracking-tighter"
-                style={{
-                  background: 'linear-gradient(135deg, #FF6B00 0%, #FF9800 30%, #2196F3 60%, #1976D2 100%)',
-                  WebkitBackgroundClip: 'text',
-                  WebkitTextFillColor: 'transparent',
-                  animation: 'logo-pop 0.6s cubic-bezier(0.34,1.56,0.64,1)',
-                  filter: 'drop-shadow(0 0 30px rgba(255,107,0,0.4))',
-                }}
-              >
-                FLEXIKEYS
-              </div>
-              <p
-                className="mt-3 text-base sm:text-lg md:text-xl font-medium tracking-wide"
-                style={{
-                  color: '#aaa',
-                  animation: 'fade-up 0.8s ease-out 0.4s both',
-                }}
-              >
-                Small steps. Big progress.
-              </p>
-              <div
-                className="mx-auto mt-5 h-[2px] rounded-full"
-                style={{
-                  background: 'linear-gradient(90deg, transparent, #FF6B00, #2196F3, transparent)',
-                  animation: 'line-expand 1s ease-out 0.7s both',
-                }}
-              />
+            >
+              {ch}
             </div>
-
-            {/* Burst particles */}
-            {Array.from({ length: 10 }).map((_, i) => {
-              const angle = (i / 10) * 2 * Math.PI;
-              const dist = 50 + (i * 9) % 70;
-              return (
-                <span
-                  key={i}
-                  className="absolute rounded-full"
-                  style={{
-                    width: `${3 + (i % 4)}px`,
-                    height: `${3 + (i % 4)}px`,
-                    left: '50%',
-                    top: '50%',
-                    background: i % 2 === 0 ? '#FF6B00' : '#2196F3',
-                    transform: `translate(-50%,-50%) translate(${Math.cos(angle) * dist}px,${Math.sin(angle) * dist}px)`,
-                    opacity: 0,
-                    animation: `cinematic-particle 1.2s ease-out ${i * 0.04}s forwards`,
-                    zIndex: 25,
-                  }}
-                />
-              );
-            })}
-          </>
-        )}
+          );
+        })}
       </div>
 
-      {/* Brand stamp */}
-      <div
-        className="absolute bottom-4 right-4 z-[50] flex items-center gap-1.5"
-        style={{ opacity: 0.8 }}
+      {/* Tagline */}
+      <p
+        className="mt-5 text-sm sm:text-base md:text-lg tracking-[0.2em] uppercase"
+        style={{
+          color: '#9aa4b2',
+          opacity: phase >= 2 ? 1 : 0,
+          transform: phase >= 2 ? 'translateY(0)' : 'translateY(12px)',
+          transition: 'opacity .6s ease .1s, transform .6s ease .1s',
+        }}
       >
-        <span className="text-xs sm:text-sm font-medium tracking-widest uppercase" style={{ color: '#666' }}>
+        Small steps · Big progress
+      </p>
+
+      {/* Accent line */}
+      <div
+        className="mt-4 h-[2px] rounded-full"
+        style={{
+          width: phase >= 2 ? 220 : 0,
+          background: 'linear-gradient(90deg, transparent, #FF6B00, #2196F3, transparent)',
+          transition: 'width .8s ease .25s',
+        }}
+      />
+
+      {/* Brand stamp */}
+      <div className="absolute bottom-4 right-4 flex items-center gap-1.5" style={{ opacity: 0.75 }}>
+        <span className="text-[10px] sm:text-xs font-medium tracking-widest uppercase" style={{ color: '#666' }}>
           made by:
         </span>
         <span
-          className="text-xs sm:text-sm font-black tracking-wider uppercase"
+          className="text-[10px] sm:text-xs font-black tracking-wider uppercase"
           style={{
             background: 'linear-gradient(135deg, #FF6B00, #2196F3)',
             WebkitBackgroundClip: 'text',
@@ -235,16 +134,14 @@ const CinematicIntro: React.FC<CinematicIntroProps> = ({ onComplete }) => {
         </span>
       </div>
 
-      {/* Skip button */}
+      {/* Skip */}
       <button
-        onClick={handleSkip}
-        className="absolute top-5 right-5 z-[50] px-4 py-2 rounded-full text-xs font-medium tracking-wide uppercase"
+        onClick={finish}
+        className="absolute top-5 right-5 px-4 py-2 rounded-full text-xs font-medium uppercase tracking-wide"
         style={{
-          background: 'rgba(255,255,255,0.1)',
-          color: '#888',
-          border: '1px solid rgba(255,255,255,0.15)',
-          opacity: phase >= 1 ? 1 : 0,
-          transition: 'opacity 0.5s ease-out',
+          background: 'rgba(255,255,255,0.08)',
+          color: '#aaa',
+          border: '1px solid rgba(255,255,255,0.12)',
         }}
       >
         Skip

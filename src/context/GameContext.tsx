@@ -23,6 +23,7 @@ interface SaveData {
   purchasedItems: string[];
   activeItems: Record<string, string>;
   levelStartTime: number;
+  lastScreen: AppScreen;
 }
 
 interface GameState {
@@ -90,8 +91,14 @@ function saveToDisk(data: Partial<SaveData>) {
 export function GameProvider({ children }: { children: React.ReactNode }) {
   const save = loadSave();
   const isReturning = !!save?.childName;
+  // Resume directly to where the child left off. Skip transient screens.
+  const transient: AppScreen[] = ['welcomeBack', 'levelComplete', 'stageComplete', 'game'];
+  const resumeScreen: AppScreen =
+    isReturning
+      ? (save?.lastScreen && !transient.includes(save.lastScreen) ? save.lastScreen : 'stages')
+      : 'onboarding';
 
-  const [screen, setScreenState] = useState<AppScreen>(isReturning ? 'welcomeBack' : 'onboarding');
+  const [screen, setScreenState] = useState<AppScreen>(resumeScreen);
   const [language, setLanguageState] = useState<Language>(save?.language || 'en');
   const [childName, setChildNameState] = useState(save?.childName || '');
   const [childAge, setChildAgeState] = useState(save?.childAge || '');
@@ -118,7 +125,10 @@ export function GameProvider({ children }: { children: React.ReactNode }) {
   const consecutiveCorrect = useRef(0);
   const consecutiveMistakes = useRef(0);
 
-  const setScreen = useCallback((s: AppScreen) => setScreenState(s), []);
+  const setScreen = useCallback((s: AppScreen) => {
+    setScreenState(s);
+    saveToDisk({ lastScreen: s });
+  }, []);
   const setLanguage = useCallback((l: Language) => {
     setLanguageState(l);
     saveToDisk({ language: l });
