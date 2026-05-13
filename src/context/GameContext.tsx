@@ -125,7 +125,10 @@ export function GameProvider({ children }: { children: React.ReactNode }) {
   const consecutiveCorrect = useRef(0);
   const consecutiveMistakes = useRef(0);
 
-  const setScreen = useCallback((s: AppScreen) => setScreenState(s), []);
+  const setScreen = useCallback((s: AppScreen) => {
+    setScreenState(s);
+    saveToDisk({ lastScreen: s });
+  }, []);
   const setLanguage = useCallback((l: Language) => {
     setLanguageState(l);
     saveToDisk({ language: l });
