@@ -69,7 +69,12 @@ const AppContent: React.FC = () => {
 };
 
 function Index() {
+  const [cfPassed, setCfPassed] = useState(false);
   const [showIntro, setShowIntro] = useState(true);
+
+  if (!cfPassed) {
+    return <CloudflareGate onComplete={() => setCfPassed(true)} />;
+  }
 
   return (
     <GameProvider>
