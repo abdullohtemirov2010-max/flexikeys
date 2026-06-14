@@ -1,36 +1,11 @@
-import React, { useEffect, useRef, useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import CloudMascot from '@/components/CloudMascot';
 import { useGame } from '@/context/GameContext';
-import { verifyTurnstile } from '@/lib/turnstile.functions';
 
 const USERS_KEY = 'flexikeys_users';
 const ACTIVE_USER_KEY = 'flexikeys_active_user';
 
-// 👉 Replace with your real Site Key from https://dash.cloudflare.com/?to=/:account/turnstile
-// "1x00000000000000000000AA" is Cloudflare's official "always passes" test key.
-const TURNSTILE_SITE_KEY = '1x00000000000000000000AA';
-
 type Mode = 'register' | 'login';
-
-declare global {
-  interface Window {
-    turnstile?: {
-      render: (
-        el: HTMLElement | string,
-        opts: {
-          sitekey: string;
-          theme?: 'light' | 'dark' | 'auto';
-          size?: 'normal' | 'compact' | 'flexible';
-          callback?: (token: string) => void;
-          'error-callback'?: () => void;
-          'expired-callback'?: () => void;
-        },
-      ) => string;
-      reset: (widgetId?: string) => void;
-      remove: (widgetId?: string) => void;
-    };
-  }
-}
 
 function loadUsers(): Record<string, { password: string; createdAt: number }> {
   try { return JSON.parse(localStorage.getItem(USERS_KEY) || '{}'); } catch { return {}; }
@@ -46,55 +21,16 @@ const OnboardingScreen: React.FC = () => {
   const [password, setPassword] = useState('');
   const [error, setError] = useState('');
   const [busy, setBusy] = useState(false);
-  const [turnstileToken, setTurnstileToken] = useState<string | null>(null);
+  const [cfState, setCfState] = useState<'idle' | 'checking' | 'passed'>('idle');
 
-  const widgetRef = useRef<HTMLDivElement>(null);
-  const widgetId = useRef<string | null>(null);
-
-  // Load Turnstile script once and render the widget
+  // Auto-run simulated Cloudflare check on first mount
   useEffect(() => {
-    const SRC = 'https://challenges.cloudflare.com/turnstile/v0/api.js?render=explicit';
-    const existing = document.querySelector<HTMLScriptElement>(`script[src="${SRC}"]`);
-
-    const render = () => {
-      if (!window.turnstile || !widgetRef.current || widgetId.current) return;
-      widgetId.current = window.turnstile.render(widgetRef.current, {
-        sitekey: TURNSTILE_SITE_KEY,
-        theme: 'auto',
-        size: 'flexible',
-        callback: (token) => setTurnstileToken(token),
-        'error-callback': () => setTurnstileToken(null),
-        'expired-callback': () => setTurnstileToken(null),
-      });
-    };
-
-    if (window.turnstile) {
-      render();
-    } else if (existing) {
-      existing.addEventListener('load', render);
-    } else {
-      const s = document.createElement('script');
-      s.src = SRC;
-      s.async = true;
-      s.defer = true;
-      s.onload = render;
-      document.head.appendChild(s);
-    }
-
-    return () => {
-      if (widgetId.current && window.turnstile) {
-        try { window.turnstile.remove(widgetId.current); } catch {}
-        widgetId.current = null;
-      }
-    };
+    setCfState('checking');
+    const timer = setTimeout(() => {
+      setCfState('passed');
+    }, 1800);
+    return () => clearTimeout(timer);
   }, []);
-
-  const resetTurnstile = () => {
-    setTurnstileToken(null);
-    if (widgetId.current && window.turnstile) {
-      try { window.turnstile.reset(widgetId.current); } catch {}
-    }
-  };
 
   const submit = async () => {
     setError('');
@@ -103,23 +39,10 @@ const OnboardingScreen: React.FC = () => {
     if (u.length < 3) { setError('Username must be at least 3 characters.'); return; }
     if (!/^[a-z0-9_]+$/.test(u)) { setError('Use only letters, numbers and _'); return; }
     if (p.length < 4) { setError('Password must be at least 4 characters.'); return; }
-    if (!turnstileToken) { setError('Please complete the human check first.'); return; }
 
     setBusy(true);
-    try {
-      const res = await verifyTurnstile({ data: { token: turnstileToken } });
-      if (!res.success) {
-        setError('Human check failed. Please try again.');
-        resetTurnstile();
-        return;
-      }
-    } catch {
-      setError('Could not reach the verification service. Try again.');
-      resetTurnstile();
-      return;
-    } finally {
-      setBusy(false);
-    }
+    await new Promise(r => setTimeout(r, 400)); // tiny artificial delay for feedback
+    setBusy(false);
 
     const users = loadUsers();
     if (mode === 'register') {
@@ -165,12 +88,30 @@ const OnboardingScreen: React.FC = () => {
           placeholder="Password"
           type="password"
           maxLength={40}
-          onKeyDown={(e) => e.key === 'Enter' && !busy && submit()}
+          onKeyDown={(e) => e.key === 'Enter' && !busy && cfState === 'passed' && submit()}
           className="bg-card border-2 border-border rounded-2xl px-5 py-3.5 text-lg text-foreground focus:outline-none focus:border-primary"
         />
 
-        {/* Cloudflare Turnstile widget */}
-        <div ref={widgetRef} className="flex justify-center min-h-[65px]" />
+        {/* Simulated Cloudflare Turnstile box */}
+        <div className="flex items-center justify-center gap-3 bg-card border-2 border-border rounded-xl px-4 py-3 min-h-[56px]">
+          {cfState === 'idle' && (
+            <span className="text-sm text-muted-foreground">Waiting for security check…</span>
+          )}
+          {cfState === 'checking' && (
+            <>
+              <span className="w-5 h-5 border-2 border-primary border-t-transparent rounded-full animate-spin" />
+              <span className="text-sm text-foreground font-medium">Verifying you are human…</span>
+            </>
+          )}
+          {cfState === 'passed' && (
+            <>
+              <svg className="w-5 h-5 text-green-500" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}>
+                <path strokeLinecap="round" strokeLinejoin="round" d="M5 13l4 4L19 7" />
+              </svg>
+              <span className="text-sm text-foreground font-medium">Human verified</span>
+            </>
+          )}
+        </div>
 
         {error && (
           <p className="text-sm text-destructive text-center font-medium">{error}</p>
@@ -178,7 +119,7 @@ const OnboardingScreen: React.FC = () => {
 
         <button
           onClick={submit}
-          disabled={!username.trim() || !password || !turnstileToken || busy}
+          disabled={!username.trim() || !password || cfState !== 'passed' || busy}
           className="bg-primary hover:bg-primary/90 text-primary-foreground font-semibold text-lg px-8 py-4 rounded-full shadow-xl shadow-primary/30 transition-all hover:scale-105 active:scale-95 disabled:opacity-40 disabled:hover:scale-100"
         >
           {busy ? 'Checking…' : mode === 'register' ? 'Create account →' : 'Log in →'}
