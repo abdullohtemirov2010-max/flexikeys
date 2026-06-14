@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from 'react';
+import React, { useState } from 'react';
 import CloudMascot from '@/components/CloudMascot';
 import { useGame } from '@/context/GameContext';
 
