@@ -14,6 +14,7 @@ import StageCompleteScreen from "@/components/screens/StageCompleteScreen";
 import AccountScreen from "@/components/screens/AccountScreen";
 import LeaderboardScreen from "@/components/screens/LeaderboardScreen";
 import CinematicIntro from "@/components/CinematicIntro";
+import CloudflareGate from "@/components/CloudflareGate";
 
 export const Route = createFileRoute("/")({
   head: () => ({
