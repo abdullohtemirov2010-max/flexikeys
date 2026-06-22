@@ -15,6 +15,7 @@ import AccountScreen from "@/components/screens/AccountScreen";
 import LeaderboardScreen from "@/components/screens/LeaderboardScreen";
 import CinematicIntro from "@/components/CinematicIntro";
 import CloudflareGate from "@/components/CloudflareGate";
+import BrandIntro from "@/components/BrandIntro";
 
 export const Route = createFileRoute("/")({
   head: () => ({
@@ -69,8 +70,13 @@ const AppContent: React.FC = () => {
 };
 
 function Index() {
+  const [brandDone, setBrandDone] = useState(false);
   const [cfPassed, setCfPassed] = useState(false);
   const [showIntro, setShowIntro] = useState(true);
+
+  if (!brandDone) {
+    return <BrandIntro onComplete={() => setBrandDone(true)} />;
+  }
 
   if (!cfPassed) {
     return <CloudflareGate onComplete={() => setCfPassed(true)} />;
