@@ -47,6 +47,39 @@ const StageScreen: React.FC = () => {
   );
   const [selectedStage, setSelectedStage] = useState<number | null>(null);
 
+  // Map zoom + pan controls
+  const [zoom, setZoom] = useState(1);
+  const [pan, setPan] = useState({ x: 0, y: 0 });
+  const dragRef = React.useRef<{ x: number; y: number; px: number; py: number } | null>(null);
+
+  const clampZoom = (z: number) => Math.min(5, Math.max(1, z));
+  const zoomIn = () => setZoom(z => clampZoom(z + 0.5));
+  const zoomOut = () => setZoom(z => {
+    const next = clampZoom(z - 0.5);
+    if (next === 1) setPan({ x: 0, y: 0 });
+    return next;
+  });
+  const resetView = () => { setZoom(1); setPan({ x: 0, y: 0 }); };
+
+  const onWheel = (e: React.WheelEvent) => {
+    if (e.deltaY === 0) return;
+    e.preventDefault();
+    setZoom(z => clampZoom(z + (e.deltaY < 0 ? 0.3 : -0.3)));
+  };
+
+  const onPointerDown = (e: React.PointerEvent) => {
+    if (zoom <= 1) return;
+    (e.target as Element).setPointerCapture?.(e.pointerId);
+    dragRef.current = { x: e.clientX, y: e.clientY, px: pan.x, py: pan.y };
+  };
+  const onPointerMove = (e: React.PointerEvent) => {
+    if (!dragRef.current) return;
+    const dx = e.clientX - dragRef.current.x;
+    const dy = e.clientY - dragRef.current.y;
+    setPan({ x: dragRef.current.px + dx, y: dragRef.current.py + dy });
+  };
+  const onPointerUp = () => { dragRef.current = null; };
+
   const handleIntroComplete = () => {
     sessionStorage.setItem('fk_seen_earth', '1');
     setShowIntro(false);
@@ -80,81 +113,124 @@ const StageScreen: React.FC = () => {
       </div>
 
       {/* Map area */}
-      <div className="relative w-full bg-[#bfe3ff]">
+      <div className="relative w-full bg-[#bfe3ff] overflow-hidden select-none">
+        {/* Zoom controls */}
+        <div className="absolute top-3 right-3 z-30 flex flex-col gap-1 bg-white/90 backdrop-blur rounded-xl shadow-lg border border-white p-1">
+          <button
+            onClick={zoomIn}
+            className="w-9 h-9 rounded-lg bg-white hover:bg-sky-100 active:scale-95 transition text-xl font-black text-sky-700 flex items-center justify-center"
+            aria-label="Zoom in"
+          >+</button>
+          <button
+            onClick={zoomOut}
+            className="w-9 h-9 rounded-lg bg-white hover:bg-sky-100 active:scale-95 transition text-xl font-black text-sky-700 flex items-center justify-center"
+            aria-label="Zoom out"
+          >−</button>
+          <button
+            onClick={resetView}
+            className="w-9 h-9 rounded-lg bg-white hover:bg-sky-100 active:scale-95 transition text-[10px] font-bold text-sky-700 flex items-center justify-center"
+            aria-label="Reset view"
+          >RESET</button>
+        </div>
+
         <div
           className="relative w-full"
-          style={{ aspectRatio: `${MAP_W} / ${MAP_H}` }}
+          style={{ aspectRatio: `${MAP_W} / ${MAP_H}`, cursor: zoom > 1 ? 'grab' : 'default' }}
+          onWheel={onWheel}
+          onPointerDown={onPointerDown}
+          onPointerMove={onPointerMove}
+          onPointerUp={onPointerUp}
+          onPointerCancel={onPointerUp}
         >
-          <WorldMapSVG
-            highlighted={HIGHLIGHT_ISO}
-            className="absolute inset-0 w-full h-full [&_svg]:w-full [&_svg]:h-full animate-map-reveal"
-          />
+          <div
+            className="absolute inset-0 origin-center"
+            style={{
+              transform: `translate(${pan.x}px, ${pan.y}px) scale(${zoom})`,
+              transition: dragRef.current ? 'none' : 'transform 250ms ease-out',
+              willChange: 'transform',
+            }}
+          >
+            <WorldMapSVG
+              highlighted={HIGHLIGHT_ISO}
+              className="absolute inset-0 w-full h-full [&_svg]:w-full [&_svg]:h-full animate-map-reveal"
+            />
 
-          {/* Pin overlay — uses absolute % positioning matching the projection */}
-          <div className="absolute inset-0 pointer-events-none">
-            {Array.from({ length: TOTAL_STAGES }, (_, i) => i + 1).map(n => {
-              const geo = STAGE_GEO[n];
-              const { x, y } = project(geo.lon, geo.lat);
-              const xPct = (x / MAP_W) * 100;
-              const yPct = (y / MAP_H) * 100;
-              const unlocked = n <= unlockedStages;
-              const isCurrent = n === unlockedStages;
-              const flagSrc = FLAG_URL[geo.iso];
-              return (
-                <button
-                  key={n}
-                  onClick={() => handleStageClick(n)}
-                  disabled={!unlocked}
-                  className="absolute pointer-events-auto group animate-pin-drop -translate-x-1/2 -translate-y-full"
-                  style={{
-                    left: `${xPct}%`,
-                    top: `${yPct}%`,
-                    animationDelay: `${0.4 + n * 0.07}s`,
-                  }}
-                  aria-label={`Stage ${n} ${geo.country}`}
-                >
-                  <div className="flex flex-col items-center">
-                    {/* Flat circular flag marker */}
-                    <div
-                      className={`relative rounded-full overflow-hidden border-2 shadow-md transition-transform ${
-                        unlocked
-                          ? 'border-white bg-white hover:scale-110 cursor-pointer'
-                          : 'border-white/70 grayscale opacity-70 cursor-not-allowed'
-                      } ${isCurrent ? 'ring-4 ring-red-400/60 animate-pulse-slow' : ''}`}
-                      style={{ width: 22, height: 22 }}
-                    >
-                      {flagSrc ? (
-                        <img
-                          src={flagSrc}
-                          alt=""
-                          className="w-full h-full object-cover"
-                          draggable={false}
-                        />
-                      ) : (
-                        <div className="w-full h-full flex items-center justify-center bg-amber-300 text-[10px]">
-                          🏆
-                        </div>
+            {/* Pin overlay — uses absolute % positioning matching the projection */}
+            <div className="absolute inset-0 pointer-events-none">
+              {Array.from({ length: TOTAL_STAGES }, (_, i) => i + 1).map(n => {
+                const geo = STAGE_GEO[n];
+                const { x, y } = project(geo.lon, geo.lat);
+                const xPct = (x / MAP_W) * 100;
+                const yPct = (y / MAP_H) * 100;
+                const unlocked = n <= unlockedStages;
+                const isCurrent = n === unlockedStages;
+                const flagSrc = FLAG_URL[geo.iso];
+                // Counter-scale markers a bit so they stay readable but still grow with zoom
+                const markerScale = 1 / Math.sqrt(zoom);
+                return (
+                  <button
+                    key={n}
+                    onClick={() => handleStageClick(n)}
+                    disabled={!unlocked}
+                    className="absolute pointer-events-auto group animate-pin-drop -translate-x-1/2 -translate-y-full"
+                    style={{
+                      left: `${xPct}%`,
+                      top: `${yPct}%`,
+                      animationDelay: `${0.4 + n * 0.07}s`,
+                      transform: `translate(-50%, -100%) scale(${markerScale})`,
+                      transformOrigin: 'bottom center',
+                    }}
+                    aria-label={`Stage ${n} ${geo.country}`}
+                  >
+                    <div className="flex flex-col items-center">
+                      {/* Big eye-catching flag marker */}
+                      <div
+                        className={`relative rounded-full overflow-hidden border-[3px] shadow-xl transition-transform ${
+                          unlocked
+                            ? 'border-white bg-white hover:scale-125 cursor-pointer'
+                            : 'border-white/70 grayscale opacity-70 cursor-not-allowed'
+                        } ${isCurrent ? 'ring-4 ring-red-500/70 animate-pulse-slow' : ''}`}
+                        style={{
+                          width: 48,
+                          height: 48,
+                          boxShadow: unlocked
+                            ? '0 6px 14px rgba(0,0,0,0.35), 0 0 0 2px rgba(255,255,255,0.9)'
+                            : '0 2px 6px rgba(0,0,0,0.25)',
+                        }}
+                      >
+                        {flagSrc ? (
+                          <img
+                            src={flagSrc}
+                            alt=""
+                            className="w-full h-full object-cover"
+                            draggable={false}
+                          />
+                        ) : (
+                          <div className="w-full h-full flex items-center justify-center bg-amber-300 text-lg">
+                            🏆
+                          </div>
+                        )}
+                        {/* Stage number badge */}
+                        <span className="absolute -top-2 -right-2 bg-red-500 text-white text-[11px] font-black rounded-full w-6 h-6 flex items-center justify-center border-2 border-white shadow-md">
+                          {n}
+                        </span>
+                      </div>
+                      {/* Tail */}
+                      <div className="w-[2px] h-3 bg-slate-700/80" />
+                      {/* Anchor dot — sits exactly on the geo coordinate */}
+                      <div
+                        className={`w-2.5 h-2.5 rounded-full ${
+                          unlocked ? 'bg-red-600' : 'bg-slate-400'
+                        } shadow-md border border-white`}
+                      />
+                      {!unlocked && (
+                        <span className="absolute -top-3 -right-3 text-base">🔒</span>
                       )}
-                      {/* Stage number badge */}
-                      <span className="absolute -top-2 -right-2 bg-red-500 text-white text-[9px] font-black rounded-full w-4 h-4 flex items-center justify-center border border-white shadow">
-                        {n}
-                      </span>
                     </div>
-                    {/* Tail */}
-                    <div className="w-px h-2 bg-slate-700/70" />
-                    {/* Anchor dot — sits exactly on the geo coordinate */}
-                    <div
-                      className={`w-1.5 h-1.5 rounded-full ${
-                        unlocked ? 'bg-red-600' : 'bg-slate-400'
-                      } shadow`}
-                    />
-                    {!unlocked && (
-                      <span className="absolute -top-3 -right-3 text-[10px]">🔒</span>
-                    )}
-                  </div>
-                </button>
-              );
-            })}
+                  </button>
+                );
+              })}
+            </div>
           </div>
         </div>
       </div>
